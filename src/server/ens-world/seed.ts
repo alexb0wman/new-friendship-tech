@@ -106,7 +106,8 @@ export async function seedEnsWorldDemo(db: Database) {
     .select()
     .from(s.places)
     .where(eq(s.places.slug, "sample-table-for-tomorrow"));
-  const startsAt = new Date(now + 4 * 3600000);
+  // Tonight at 19:00 Tokyo time, or tomorrow's if that already passed.
+  const startsAt = nextTokyoEvening(new Date(now));
   const label = tableLabel("dinner", startsAt);
   const [gathering] = await db
     .insert(s.gatherings)
@@ -138,4 +139,20 @@ export async function seedEnsWorldDemo(db: Database) {
     .update(s.gatherings)
     .set({ chainRecordTx: written.hash, chainVerifiedAt: new Date() })
     .where(eq(s.gatherings.id, gathering.id));
+}
+function nextTokyoEvening(now: Date) {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en", {
+      timeZone: "Asia/Tokyo",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    })
+      .formatToParts(now)
+      .map((part) => [part.type, part.value]),
+  );
+  let candidate = new Date(`${parts.year}-${parts.month}-${parts.day}T19:00:00+09:00`);
+  if (candidate.getTime() < now.getTime() + 2 * 3600000)
+    candidate = new Date(candidate.getTime() + 86400000);
+  return candidate;
 }

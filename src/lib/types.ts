@@ -179,6 +179,7 @@ export interface TripDTO {
   chainVerifiedAt: string | null;
   verifiedHuman: boolean;
   now: NowRecord | null;
+  nowOnChain: boolean;
   payAddress: string | null;
   explorer: { name: string | null; tx: string | null };
 }

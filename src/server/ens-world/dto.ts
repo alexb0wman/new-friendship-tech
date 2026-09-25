@@ -27,6 +27,7 @@ export function tripDTO(
     chainVerifiedAt: row.chainVerifiedAt?.toISOString() ?? null,
     verifiedHuman: !!user.verifiedHumanAt,
     now,
+    nowOnChain: !!now && !!row.nowTx,
     payAddress: row.payAddress,
     explorer: { name: explorerName(row.ensName), tx: explorerTx(row.chainTx) },
   };

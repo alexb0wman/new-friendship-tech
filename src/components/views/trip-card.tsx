@@ -199,7 +199,10 @@ export function TripCard({ city = "tokyo" }: { city?: string }) {
           {trip.now && (
             <div className="note">
               Right now: {trip.now.kind.toLowerCase()} in {trip.now.area} until{" "}
-              {dateLabel(trip.now.until)}. Written on your name as friendship.now by the concierge.
+              {dateLabel(trip.now.until)}.
+              {trip.nowOnChain
+                ? " Written on your name as friendship.now by the concierge."
+                : " Post it through the concierge and it is written on your name as friendship.now."}
             </div>
           )}
           <div className="trip-actions">
