@@ -43,6 +43,9 @@ export interface PublicMember {
   host: boolean;
   ensName: string | null;
   fixture: boolean;
+  tripName: string | null;
+  verifiedHuman: boolean;
+  now: NowRecord | null;
 }
 export interface Place {
   id: string;
@@ -76,7 +79,13 @@ export interface Entitlement {
   source: string;
 }
 export interface Me {
-  user: PublicMember & { visible: boolean; onboarded: boolean; admin: boolean };
+  user: PublicMember & {
+    visible: boolean;
+    onboarded: boolean;
+    admin: boolean;
+    verifiedHuman: boolean;
+    worldAgentLinked: boolean;
+  };
   membership: {
     active: boolean;
     current: Entitlement | null;

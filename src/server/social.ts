@@ -9,10 +9,23 @@ import { config } from "./config";
 import { contactSchema, openContact, sealContact } from "./privacy";
 import { publishedCity } from "./catalog";
 import { INTERESTS, INTENTS } from "@/lib/constants";
-import type { PublicMember, ConnectionItem } from "@/lib/types";
+import type { PublicMember, ConnectionItem, NowRecord } from "@/lib/types";
+import { tripBadges } from "./ens-world/trips";
 
-export function publicMember(row: s.UserRow, ensName: string | null = null): PublicMember {
+export interface MemberExtras {
+  tripName: string | null;
+  verifiedHuman: boolean;
+  now: NowRecord | null;
+}
+export function publicMember(
+  row: s.UserRow,
+  ensName: string | null = null,
+  extras: Partial<MemberExtras> = {},
+): PublicMember {
   return {
+    tripName: extras.tripName ?? null,
+    verifiedHuman: extras.verifiedHuman ?? false,
+    now: extras.now ?? null,
     id: row.id,
     name: row.name,
     role: row.role,
@@ -59,6 +72,8 @@ export async function me(user: s.UserRow) {
       visible: user.visible,
       onboarded: user.onboarded,
       admin: user.admin,
+      verifiedHuman: !!user.verifiedHumanAt,
+      worldAgentLinked: !!user.worldAgentSub,
     },
     membership: await membership(user.id),
     walletAddresses: wallets.map((row) => row.address),
@@ -148,7 +163,7 @@ export async function listMembers(actorId: string, params: URLSearchParams) {
         gt(s.ensIdentities.verifiedAt, new Date(Date.now() - 300000)),
       ),
     );
-  return rows
+  const shown = rows
     .filter(
       (row) =>
         !blocked.has(row.id) &&
@@ -157,8 +172,19 @@ export async function listMembers(actorId: string, params: URLSearchParams) {
             .toLowerCase()
             .includes(query)),
     )
-    .slice(0, 50)
-    .map((row) => publicMember(row, ensRows.find((ens) => ens.userId === row.id)?.name ?? null));
+    .slice(0, 50);
+  // Trip names and verified-human badges come from the ENSv2 trips, never fabricated.
+  const badges = await tripBadges(
+    shown.map((row) => row.id),
+    city === "all" ? undefined : city,
+  );
+  return shown.map((row) =>
+    publicMember(
+      row,
+      ensRows.find((ens) => ens.userId === row.id)?.name ?? null,
+      badges.get(row.id),
+    ),
+  );
 }
 export async function memberDetail(actorId: string, memberId: string) {
   await requireMember(actorId);
@@ -171,7 +197,7 @@ export async function memberDetail(actorId: string, memberId: string) {
     .where(and(eq(s.users.id, memberId), eq(s.users.visible, true), eq(s.users.suspended, false)))
     .limit(1);
   invariant(row, "NOT_FOUND", "Member not found.", 404);
-  return publicMember(row);
+  return publicMember(row, null, (await tripBadges([row.id])).get(row.id));
 }
 export const requestSchema = z
   .object({
@@ -305,7 +331,31 @@ export async function respondRequest(
     "Request not found.",
     404,
   );
-  return applyWrite(actorId, "request." + action, requestId, async (tx) => {
+  return applyWrite(actorId, "request." + action, requestId, (tx) =>
+    respondRequestIn(tx, actorId, requestId, action, observed),
+  );
+}
+/** The body of respondRequest inside a caller-owned transaction (agent approvals run executors this way). */
+export async function respondRequestIn(
+  tx: Tx,
+  actorId: string,
+  requestId: string,
+  action: "accept" | "decline" | "cancel",
+  observed?: typeof s.connectionRequests.$inferSelect,
+) {
+  if (!observed) {
+    [observed] = await tx
+      .select()
+      .from(s.connectionRequests)
+      .where(eq(s.connectionRequests.id, requestId));
+    invariant(
+      observed && [observed.senderId, observed.recipientId].includes(actorId),
+      "NOT_FOUND",
+      "Request not found.",
+      404,
+    );
+  }
+  {
     await tx
       .select({ id: s.users.id })
       .from(s.users)
@@ -350,7 +400,7 @@ export async function respondRequest(
         .onConflictDoNothing();
     }
     return { status: desired };
-  });
+  }
 }
 export async function listRequests(actorId: string): Promise<ConnectionItem[]> {
   const db = await getDb(),
@@ -418,7 +468,11 @@ export const nowSchema = z
 export async function createNow(actorId: string, body: z.infer<typeof nowSchema>) {
   invariant(config().nowEnabled, "FEATURE_PAUSED", "Right now is temporarily paused.", 503);
   await publishedCity(body.city);
-  return applyWrite(actorId, "now.create", actorId, async (tx) => {
+  return applyWrite(actorId, "now.create", actorId, (tx) => createNowIn(tx, actorId, body));
+}
+/** The body of createNow inside a caller-owned transaction (the concierge posts through an approval). */
+export async function createNowIn(tx: Tx, actorId: string, body: z.infer<typeof nowSchema>) {
+  {
     const [owner] = await tx.select().from(s.users).where(eq(s.users.id, actorId)).for("update");
     await requireMember(actorId, tx);
     invariant(
@@ -457,7 +511,7 @@ export async function createNow(actorId: string, body: z.infer<typeof nowSchema>
         })
         .returning()
     )[0];
-  });
+  }
 }
 export async function listNow(actorId: string, city = "tokyo") {
   invariant(config().nowEnabled, "FEATURE_PAUSED", "Right now is temporarily paused.", 503);

@@ -83,7 +83,10 @@ async function currentTrip(userId: string, city: string, db?: Tx | Database) {
     .limit(1);
   return row ?? null;
 }
-async function nowFor(userIds: string[], db?: Tx | Database): Promise<Map<string, NowRecord>> {
+export async function nowFor(
+  userIds: string[],
+  db?: Tx | Database,
+): Promise<Map<string, NowRecord>> {
   if (!userIds.length) return new Map();
   const rows = await (db ?? (await getDb()))
     .select()
