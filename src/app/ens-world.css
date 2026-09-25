@@ -1,0 +1,300 @@
+/* ENSv2 trips, tables, approvals and the concierge. Reuses the app tokens from globals.css. */
+.mono,
+.mono-input input,
+.trip-name {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  letter-spacing: 0;
+}
+.trip-name {
+  font-size: 15px;
+  word-break: break-all;
+}
+.mono-input {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.mono-input input {
+  flex: 1 1 140px;
+  min-width: 0;
+}
+.field-pair {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 640px) {
+  .field-pair {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.trip-card h2 {
+  word-break: break-all;
+}
+.trip-active,
+.concierge-panel,
+.sim-panel,
+.approval-panel,
+.split-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.trip-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.link-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.trip-actions {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.trip-actions .field {
+  flex: 1 1 160px;
+  margin: 0;
+}
+.concierge-panel {
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+.sim-panel {
+  border: 1px dashed #c7ff9750;
+  border-radius: 10px;
+  padding: 14px;
+  background: #c7ff9708;
+}
+.approval-panel h3 {
+  font-size: 20px;
+}
+.approval-result {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+.approval-result.consumed,
+.approval-result.approved {
+  border-color: #c7ff9760;
+  color: var(--lime);
+}
+.approval-result.denied,
+.approval-result.expired {
+  border-color: #ff9d9d60;
+  color: #ffb4b4;
+}
+.approval-result p {
+  color: var(--muted);
+}
+.approval-page {
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px 0;
+}
+.table-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+.table-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+}
+.table-card h2 {
+  font-size: 22px;
+}
+.table-card .table-name {
+  font-size: 12px;
+  color: var(--muted);
+  word-break: break-all;
+}
+.table-host {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.table-host strong {
+  display: block;
+  font-weight: 500;
+}
+.table-host span {
+  font-size: 12px;
+  color: var(--muted);
+}
+.seat-meter {
+  display: flex;
+  gap: 4px;
+}
+.seat-meter i {
+  width: 14px;
+  height: 6px;
+  border-radius: 3px;
+  background: #ffffff20;
+}
+.seat-meter i.taken {
+  background: var(--lime);
+}
+.attendee-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.attendee-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  flex-wrap: wrap;
+}
+.attendee-row .who {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.attendee-row .who small {
+  color: var(--muted);
+  word-break: break-all;
+}
+.detail-grid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 900px) {
+  .detail-grid {
+    grid-template-columns: 1.4fr 1fr;
+  }
+}
+.record-box {
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  margin: 0;
+}
+.concierge-fab {
+  position: fixed;
+  right: 18px;
+  bottom: 86px;
+  z-index: 40;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-radius: 999px;
+  border: 1px solid #c7ff9760;
+  background: var(--raised);
+  color: var(--lime);
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: 0 10px 30px #00000080;
+}
+@media (min-width: 900px) {
+  .concierge-fab {
+    bottom: 24px;
+  }
+}
+.concierge-drawer {
+  position: fixed;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: min(420px, 100vw);
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  box-shadow: -20px 0 60px #00000080;
+}
+.concierge-drawer header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.concierge-drawer header p {
+  font-size: 12px;
+  color: var(--muted);
+}
+.concierge-log {
+  flex: 1;
+  overflow: auto;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.concierge-msg {
+  padding: 10px 14px;
+  border-radius: 12px;
+  max-width: 92%;
+  font-size: 14px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.concierge-msg.me {
+  align-self: flex-end;
+  background: var(--lime);
+  color: #050505;
+}
+.concierge-msg.bot {
+  align-self: flex-start;
+  background: var(--raised);
+  border: 1px solid var(--border);
+}
+.concierge-proposals {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-self: stretch;
+}
+.concierge-input {
+  display: flex;
+  gap: 8px;
+  padding: 12px 18px 16px;
+  border-top: 1px solid var(--border);
+}
+.concierge-input input {
+  flex: 1;
+  min-width: 0;
+}
+.concierge-backdrop {
+  position: fixed;
+  inset: 0;
+  background: #00000066;
+  z-index: 50;
+}
+.badge-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.member-now {
+  font-size: 12px;
+  color: var(--lime);
+}

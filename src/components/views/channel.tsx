@@ -6,10 +6,7 @@ import { useResource, useSession } from "../session";
 import { Eyebrow, Loading, Empty, ErrorBox, Tag } from "../ui";
 import type { ContentItem, ContentSection, ContentKind } from "@/lib/types";
 
-const SECTION_COPY: Record<
-  ContentSection,
-  { eyebrow: string; title: string; blurb: string }
-> = {
+const SECTION_COPY: Record<ContentSection, { eyebrow: string; title: string; blurb: string }> = {
   travel: {
     eyebrow: "TRAVEL",
     title: "Where to go.",
@@ -231,11 +228,7 @@ export function TravelChannelView() {
           ))}
         </div>
       )}
-      {!me && (
-        <div className="note">
-          Sign in to save entries and see the full collection.
-        </div>
-      )}
+      {!me && <div className="note">Sign in to save entries and see the full collection.</div>}
     </>
   );
 }

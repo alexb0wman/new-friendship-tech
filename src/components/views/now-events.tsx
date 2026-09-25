@@ -16,11 +16,18 @@ import {
   dateLabel,
 } from "../ui";
 import { RequestDialog } from "../request-dialog";
+import { ApprovalModal } from "../approval-modal";
+import type { ApprovalDTO, TripDTO } from "@/lib/types";
 import { INTENTS, NEIGHBORHOODS } from "@/lib/constants";
 import type { NowPost, EventItem } from "@/lib/types";
 export function NowView({ city }: { city: string }) {
   const { data, error, loading, reload } = useResource<{ items: NowPost[] }>("now?city=" + city),
-    { api, notice } = useSession();
+    { api, notice, me } = useSession();
+  const { data: mine } = useResource<{ trip: TripDTO | null }>(me ? "trips/me?city=" + city : null);
+  const [approval, setApproval] = useState<ApprovalDTO | null>(null);
+  // With an active trip and a linked World ID, the concierge posts it (approved, then written on
+  // the trip name). Otherwise the invitation is posted directly, as before.
+  const viaConcierge = !!mine?.trip && !!me?.user.worldAgentLinked;
   const [open, setOpen] = useState(false),
     [selected, setSelected] = useState<NowPost | null>(null),
     [kind, setKind] = useState("Coffee"),
@@ -34,6 +41,20 @@ export function NowView({ city }: { city: string }) {
     setBusy(true);
     setFormError(null);
     try {
+      if (viaConcierge) {
+        const proposal = await api<ApprovalDTO>("concierge/now", {
+          method: "POST",
+          body: JSON.stringify({
+            city,
+            kind,
+            area,
+            until: new Date(Date.now() + hours * 3600000).toISOString(),
+          }),
+        });
+        setOpen(false);
+        setApproval(proposal);
+        return;
+      }
       await api("now", {
         method: "POST",
         body: JSON.stringify({ city, kind, neighborhood: area, note, hours }),
@@ -170,14 +191,32 @@ export function NowView({ city }: { city: string }) {
           </label>
           <p className="muted small">
             This replaces your previous active invitation. Your profile must be discoverable.
+            {viaConcierge
+              ? " The concierge posts it after your World ID approval and writes it on your trip name."
+              : ""}
           </p>
           <ErrorBox error={formError} />
           <button disabled={busy} className="button lime full">
-            {busy ? "Publishing…" : "Make it happen"}
+            {busy
+              ? "Publishing…"
+              : viaConcierge
+                ? "Ask the concierge to post it"
+                : "Make it happen"}
             <Arrow />
           </button>
         </form>
       </Modal>
+      <ApprovalModal
+        approval={approval}
+        onClose={() => setApproval(null)}
+        onResolved={(resolved) => {
+          if (resolved.status === "consumed") {
+            setNote("");
+            void reload();
+            notice("Posted by the concierge and written on your trip name.");
+          }
+        }}
+      />
       <RequestDialog
         key={selected?.id ?? "none"}
         member={selected?.owner ?? null}

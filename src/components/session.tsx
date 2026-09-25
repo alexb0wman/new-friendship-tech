@@ -18,6 +18,18 @@ export interface RuntimeConfig {
   ensEnabled: boolean;
   ensWriteEnabled: boolean;
   actors: { key: string; id: string; label: string }[];
+  world: {
+    enabled: boolean;
+    appId: string | null;
+    rpId: string | null;
+    environment: string;
+    action: string;
+    agentsEnabled: boolean;
+    simulated: boolean;
+  };
+  ensParent: string | null;
+  splitOgPayEnabled: boolean;
+  origin: string;
 }
 export class ApiError extends Error {
   constructor(

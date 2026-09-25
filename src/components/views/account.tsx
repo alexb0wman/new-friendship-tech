@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useResource, useSession } from "../session";
 import { PageTitle, Loading, Empty, Arrow, ErrorBox, Eyebrow, Tag, Avatar } from "../ui";
 import { INTERESTS, INTENTS, NEIGHBORHOODS } from "@/lib/constants";
+import { TripCard } from "./trip-card";
 type Profile = {
   name: string;
   role: string;
@@ -344,6 +345,7 @@ export function SettingsView() {
       />
       <ErrorBox error={error} />
       <div className="settings-grid">
+        <TripCard />
         <section className="settings-panel">
           <div className="account-summary">
             <Avatar name={me.user.name} large />

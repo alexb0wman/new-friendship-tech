@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./ens-world.css";
 @font-face {
   font-family: "Visby";
   src: url("/fonts/Visby-Regular.woff2") format("woff2");
