@@ -6,18 +6,27 @@ import {
   boolean,
   timestamp,
   jsonb,
+  numeric,
   uniqueIndex,
   index,
   check,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import type {
+  ApprovalAction,
+  ApprovalStatus,
+  AttendeeStatus,
   Category,
   ContentKind,
   ContentSection,
   ContentStatus,
+  EnsJobKind,
+  EnsJobSigner,
+  GatheringKind,
+  GatheringStatus,
   InvoiceStatus,
   RequestStatus,
+  TripStatus,
 } from "@/lib/types";
 
 const time = (name: string) => timestamp(name, { withTimezone: true, mode: "date" });
@@ -39,6 +48,9 @@ export const users = pgTable(
     host: boolean("host").notNull().default(false),
     suspended: boolean("suspended").notNull().default(false),
     fixture: boolean("fixture").notNull().default(false),
+    verifiedHumanAt: time("verified_human_at"),
+    worldAgentIssuer: text("world_agent_issuer"),
+    worldAgentSub: text("world_agent_sub"),
     createdAt: time("created_at").notNull().defaultNow(),
     updatedAt: time("updated_at").notNull().defaultNow(),
   },
@@ -397,3 +409,184 @@ export const ensWriteIntents = pgTable(
   },
   (t) => [index("ens_intents_user_idx").on(t.userId, t.expiresAt)],
 );
+
+// ENSv2 trips, tables, World ID proofs, agent approvals and chain jobs (drizzle/0003).
+export const humanProofs = pgTable(
+  "human_proofs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    action: text("action").notNull(),
+    city: text("city").notNull(),
+    nullifier: numeric("nullifier", { precision: 78, scale: 0 }).notNull(),
+    signalHash: text("signal_hash"),
+    issuerSchemaId: text("issuer_schema_id"),
+    expiresAtMin: time("expires_at_min"),
+    environment: text("environment").notNull(),
+    verifiedAt: time("verified_at").notNull().defaultNow(),
+  },
+  (t) => [index("human_proofs_lookup_idx").on(t.action, t.city, t.nullifier)],
+);
+export const trips = pgTable(
+  "trips",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    city: text("city")
+      .notNull()
+      .references(() => cities.slug),
+    label: text("label").notNull(),
+    ensName: text("ens_name").notNull(),
+    labelhash: text("labelhash").notNull(),
+    registry: text("registry").notNull(),
+    resolver: text("resolver").notNull(),
+    arrivesAt: time("arrives_at").notNull(),
+    departsAt: time("departs_at").notNull(),
+    status: text("status").$type<TripStatus>().notNull().default("pending_chain"),
+    chainTx: text("chain_tx"),
+    recordsTx: text("records_tx"),
+    chainVerifiedAt: time("chain_verified_at"),
+    humanProofId: uuid("human_proof_id").references(() => humanProofs.id, {
+      onDelete: "set null",
+    }),
+    nowTx: text("now_tx"),
+    payAddress: text("pay_address"),
+    payTx: text("pay_tx"),
+    createdAt: time("created_at").notNull().defaultNow(),
+    updatedAt: time("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("trips_active_label_unique")
+      .on(t.city, t.label)
+      .where(sql.raw("status IN ('pending_chain','active')")),
+    uniqueIndex("trips_active_user_unique")
+      .on(t.userId, t.city)
+      .where(sql.raw("status IN ('pending_chain','active')")),
+    index("trips_city_status_idx").on(t.city, t.status, t.departsAt),
+    check("trips_time_order", sql.raw("departs_at > arrives_at")),
+  ],
+);
+export const gatherings = pgTable(
+  "gatherings",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    hostUserId: uuid("host_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    tripId: uuid("trip_id")
+      .notNull()
+      .references(() => trips.id, { onDelete: "cascade" }),
+    city: text("city")
+      .notNull()
+      .references(() => cities.slug),
+    kind: text("kind").$type<GatheringKind>().notNull(),
+    placeId: uuid("place_id").references(() => places.id, { onDelete: "set null" }),
+    area: text("area").notNull(),
+    startsAt: time("starts_at").notNull(),
+    seats: integer("seats").notNull(),
+    label: text("label").notNull(),
+    ensName: text("ens_name").notNull(),
+    status: text("status").$type<GatheringStatus>().notNull().default("open"),
+    splitStatus: text("split_status")
+      .$type<"none" | "pending" | "settled">()
+      .notNull()
+      .default("none"),
+    splitTotalCents: integer("split_total_cents"),
+    splitCurrency: text("split_currency"),
+    chainRecordTx: text("chain_record_tx"),
+    chainVerifiedAt: time("chain_verified_at"),
+    createdAt: time("created_at").notNull().defaultNow(),
+    updatedAt: time("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("gatherings_label_unique").on(t.city, t.label),
+    index("gatherings_city_status_idx").on(t.city, t.status, t.startsAt),
+    check("gatherings_seats_range", sql.raw("seats >= 2 AND seats <= 8")),
+  ],
+);
+export const agentApprovals = pgTable(
+  "agent_approvals",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    action: text("action").$type<ApprovalAction>().notNull(),
+    payload: jsonb("payload").$type<Record<string, unknown>>().notNull().default({}),
+    summary: text("summary").notNull(),
+    nonce: text("nonce").notNull().unique(),
+    codeVerifier: text("code_verifier").notNull(),
+    status: text("status").$type<ApprovalStatus>().notNull().default("pending"),
+    worldSub: text("world_sub"),
+    authTime: time("auth_time"),
+    resultId: text("result_id"),
+    expiresAt: time("expires_at").notNull(),
+    consumedAt: time("consumed_at"),
+    createdAt: time("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("agent_approvals_user_idx").on(t.userId, t.status, t.createdAt)],
+);
+export const gatheringAttendees = pgTable(
+  "gathering_attendees",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    gatheringId: uuid("gathering_id")
+      .notNull()
+      .references(() => gatherings.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    tripId: uuid("trip_id")
+      .notNull()
+      .references(() => trips.id, { onDelete: "cascade" }),
+    role: text("role").$type<"host" | "member">().notNull(),
+    plusOnes: integer("plus_ones").notNull().default(0),
+    status: text("status").$type<AttendeeStatus>().notNull().default("requested"),
+    approvalId: uuid("approval_id").references(() => agentApprovals.id, {
+      onDelete: "set null",
+    }),
+    shareCents: integer("share_cents"),
+    payAddress: text("pay_address"),
+    paidTx: text("paid_tx"),
+    paidVerifiedAt: time("paid_verified_at"),
+    createdAt: time("created_at").notNull().defaultNow(),
+    updatedAt: time("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("attendees_gathering_user_unique").on(t.gatheringId, t.userId),
+    check("attendees_plus_ones_range", sql.raw("plus_ones >= 0 AND plus_ones <= 1")),
+  ],
+);
+export const ensJobs = pgTable(
+  "ens_jobs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    kind: text("kind").$type<EnsJobKind>().notNull(),
+    signer: text("signer").$type<EnsJobSigner>().notNull(),
+    entityId: text("entity_id").notNull(),
+    payload: jsonb("payload").$type<Record<string, unknown>>().notNull().default({}),
+    status: text("status")
+      .$type<"ready" | "running" | "done" | "review">()
+      .notNull()
+      .default("ready"),
+    attempts: integer("attempts").notNull().default(0),
+    runAfter: time("run_after").notNull().defaultNow(),
+    leaseUntil: time("lease_until"),
+    leaseOwner: text("lease_owner"),
+    lastError: text("last_error"),
+    txHash: text("tx_hash"),
+    verifiedAt: time("verified_at"),
+    createdAt: time("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("ens_jobs_due_idx").on(t.status, t.runAfter)],
+);
+export type TripRow = typeof trips.$inferSelect;
+export type HumanProofRow = typeof humanProofs.$inferSelect;
+export type GatheringRow = typeof gatherings.$inferSelect;
+export type AttendeeRow = typeof gatheringAttendees.$inferSelect;
+export type ApprovalRow = typeof agentApprovals.$inferSelect;
+export type EnsJobRow = typeof ensJobs.$inferSelect;

@@ -59,7 +59,7 @@ export async function handleApi(request: Request): Promise<Response> {
     if (path === "demo/session" && method === "POST") {
       invariant(config().demo, "NOT_FOUND", "Not found.", 404);
       const data = z
-        .object({ actor: z.enum(["alex", "maya", "admin"]) })
+        .object({ actor: z.enum(DEMO_ACTORS.map((item) => item.key) as [string, ...string[]]) })
         .parse(await jsonBody(request));
       const token = await demoSession(data.actor);
       return ok({ ok: true }, correlationId, 200, {
@@ -279,7 +279,10 @@ export async function handleApi(request: Request): Promise<Response> {
         return ok(await admin.adminOverview(actor), correlationId);
       if (path === "admin/content" && method === "POST")
         return ok(
-          await editorial.upsertContent(actor, editorial.contentInput.parse(await jsonBody(request))),
+          await editorial.upsertContent(
+            actor,
+            editorial.contentInput.parse(await jsonBody(request)),
+          ),
           correlationId,
         );
       if (path === "admin/content/delete" && method === "POST") {

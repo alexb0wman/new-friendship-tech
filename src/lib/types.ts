@@ -140,3 +140,98 @@ export interface Invoice {
   provider: string;
   demo: boolean;
 }
+
+// ENSv2 trips, tables, approvals and chain jobs.
+export type TripStatus = "pending_chain" | "active" | "ended" | "expired" | "failed";
+export type GatheringKind = "coffee" | "breakfast" | "lunch" | "dinner" | "drinks";
+export type GatheringStatus = "open" | "full" | "closed" | "cancelled";
+export type AttendeeStatus = "requested" | "approved" | "declined" | "left";
+export type ApprovalAction =
+  "agent.link" | "now.publish" | "table.request" | "table.approve" | "contact.reveal";
+export type ApprovalStatus = "pending" | "approved" | "denied" | "expired" | "consumed";
+export type EnsJobKind =
+  "trip.register" | "trip.renew" | "trip.expire" | "record.set" | "table.write" | "split.verify";
+export type EnsJobSigner = "operator" | "concierge" | "none";
+export interface NowRecord {
+  kind: string;
+  area: string;
+  until: string;
+}
+export interface TripDTO {
+  id: string;
+  city: string;
+  label: string;
+  name: string;
+  status: TripStatus;
+  arrivesAt: string;
+  departsAt: string;
+  chainTx: string | null;
+  recordsTx: string | null;
+  chainVerifiedAt: string | null;
+  verifiedHuman: boolean;
+  now: NowRecord | null;
+  payAddress: string | null;
+  explorer: { name: string | null; tx: string | null };
+}
+export interface GatheringSummary {
+  id: string;
+  city: string;
+  kind: GatheringKind;
+  area: string;
+  place: { id: string; slug: string; name: string } | null;
+  startsAt: string;
+  seats: number;
+  seatsLeft: number;
+  status: GatheringStatus;
+  label: string;
+  name: string;
+  host: { name: string; displayName: string; verifiedHuman: boolean };
+  chainRecordTx: string | null;
+  chainVerifiedAt: string | null;
+  mine: boolean;
+  myStatus: AttendeeStatus | null;
+  explorer: { name: string | null; tx: string | null };
+}
+export interface AttendeeDTO {
+  id: string;
+  name: string;
+  displayName: string;
+  role: "host" | "member";
+  plusOnes: number;
+  status: AttendeeStatus;
+  verifiedHuman: boolean;
+  shareCents: number | null;
+  paidTx: string | null;
+  paidVerifiedAt: string | null;
+}
+export interface SplitMine {
+  shareCents: number;
+  payTo: string;
+  payToName: string;
+  token: string;
+  amountBaseUnits: string;
+  paidTx: string | null;
+  verified: boolean;
+}
+export interface GatheringDetail extends GatheringSummary {
+  attendees: AttendeeDTO[];
+  guests: number;
+  split: {
+    status: "none" | "pending" | "settled";
+    totalCents: number | null;
+    unitCents: number | null;
+    hostCents: number | null;
+    mine: SplitMine | null;
+  };
+  record: string | null;
+}
+export interface ApprovalDTO {
+  id: string;
+  action: ApprovalAction;
+  summary: string;
+  status: ApprovalStatus;
+  url: string | null;
+  expiresAt: string;
+  resultId: string | null;
+  simulated: boolean;
+}
