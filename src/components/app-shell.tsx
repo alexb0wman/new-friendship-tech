@@ -22,21 +22,72 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname(),
     { me, config, login, logout, switchDemo, notice } = useSession();
   const [accountOpen, setAccountOpen] = useState(false),
-    [cityOpen, setCityOpen] = useState(false);
+    [cityOpen, setCityOpen] = useState(false),
+    [exploreOpen, setExploreOpen] = useState(false);
   const { data: cityData } = useResource<{ items: City[] }>("cities");
   const citySlug =
     cityData?.items.find((city) => pathname.startsWith("/" + city.slug))?.slug ?? "tokyo";
-  const nav = [
-    { href: "/" + citySlug, label: "Explore", icon: Compass },
-    { href: "/" + citySlug + "/people", label: "People", icon: Users },
-    { href: "/" + citySlug + "/now", label: "Right now", icon: Zap },
+  const primary = [
+    { href: "/network", label: "Network" },
+    { href: "/intelligence", label: "Intelligence" },
+    { href: "/" + citySlug + "/events", label: "Events" },
+    { href: "/atlas", label: "Atlas" },
+    { href: "/introductions", label: "Intros" },
+    { href: "/membership", label: "Membership" },
+    { href: "/" + citySlug + "/now", label: "Right now" },
+    { href: "/standings", label: "Standings" },
+  ];
+  const mobile = [
+    { href: "/network", label: "Network", icon: Users },
     { href: "/" + citySlug + "/events", label: "Events", icon: CalendarDays },
+    { href: "/" + citySlug + "/now", label: "Now", icon: Zap },
+    { href: "/atlas", label: "Atlas", icon: Compass },
     { href: "/saved", label: "Saved", icon: Bookmark },
   ];
-  const active = (href: string) =>
-    href === "/" + citySlug
-      ? pathname === href || pathname.startsWith(href + "/places")
-      : pathname.startsWith(href);
+  const explore = [
+    {
+      label: "Network",
+      items: [
+        ["/network", "Network", "People and the graph"],
+        ["/atlas", "Relationship Atlas", "How everyone connects"],
+        ["/companies", "Companies", "Companies in the network"],
+        ["/capital", "Capital", "Investors and funds"],
+        ["/cities", "Cities", "Where the network gathers"],
+        ["/invite-tree", "Invite Tree", "Who invited whom"],
+      ],
+    },
+    {
+      label: "Events",
+      items: [
+        ["/" + citySlug + "/events", "Events", "What's on"],
+        ["/where-to-be", "Where to be", "The week"],
+      ],
+    },
+    {
+      label: "Intelligence",
+      items: [
+        ["/intelligence", "Intelligence", "The wire"],
+        ["/read", "Read", "Longer pieces"],
+      ],
+    },
+    {
+      label: "Membership",
+      items: [
+        ["/membership", "Membership", "All Access"],
+        ["/onboarding", "Join", "Create an account"],
+        ["/trust", "Trust", "What a label means"],
+        ["/policy", "Member policy", "Consent and reports"],
+      ],
+    },
+    {
+      label: "Operations",
+      items: [
+        ["/admin", "Admin Console", "Content and reports"],
+        ["/operations", "Operations", "Review queue"],
+      ],
+    },
+  ];
+  const active = (href: string) => pathname === href || pathname.startsWith(href + "/");
   return (
     <div className="app-frame">
       {config?.demo && (
@@ -70,8 +121,15 @@ export function AppShell({ children }: { children: ReactNode }) {
           {cityData?.items.find((city) => city.slug === citySlug)?.name ?? "Tokyo"}
           <ChevronDown size={14} />
         </button>
+        <button
+          className="explore-button"
+          aria-expanded={exploreOpen}
+          onClick={() => setExploreOpen((open) => !open)}
+        >
+          Explore <ChevronDown size={14} />
+        </button>
         <nav className="desktop-nav" aria-label="Main navigation">
-          {nav.map((item) => (
+          {primary.map((item) => (
             <Link
               key={item.href}
               href={item.href}
@@ -112,8 +170,23 @@ export function AppShell({ children }: { children: ReactNode }) {
           TOKYO ALPHA · <Link href="/privacy">Privacy</Link> · <Link href="/terms">Terms</Link>
         </span>
       </footer>
+      {exploreOpen && (
+        <div className="explore-menu" role="navigation" aria-label="Explore">
+          {explore.map((group) => (
+            <div key={group.label}>
+              <p className="eyebrow">{group.label}</p>
+              {group.items.map(([href, label, detail]) => (
+                <Link key={href} href={href} onClick={() => setExploreOpen(false)}>
+                  <strong>{label}</strong>
+                  <span>{detail}</span>
+                </Link>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
       <nav className="bottom-nav" aria-label="Mobile navigation">
-        {nav.map((item) => (
+        {mobile.map((item) => (
           <Link
             key={item.href}
             href={item.href}
@@ -121,7 +194,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             aria-current={active(item.href) ? "page" : undefined}
           >
             <item.icon size={20} />
-            <span>{item.label === "Right now" ? "Now" : item.label}</span>
+            <span>{item.label}</span>
           </Link>
         ))}
       </nav>

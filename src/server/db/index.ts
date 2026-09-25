@@ -17,7 +17,7 @@ export async function getDb(): Promise<Database> {
 }
 async function initialize(): Promise<Database> {
   const env = config();
-  if (env.demo) {
+  if (env.demo || process.env.NFT_EMBEDDED_DB === "true") {
     const client = new PGlite();
     runtime.pglite = client;
     const migrations = (await readdir(join(process.cwd(), "drizzle")))
@@ -28,8 +28,10 @@ async function initialize(): Promise<Database> {
       await client.exec(content);
     }
     const db = pgliteDrizzle(client, { schema });
-    const { seedDemo } = await import("./seed");
-    await seedDemo(db);
+    if (env.demo) {
+      const { seedDemo } = await import("./seed");
+      await seedDemo(db);
+    }
     return db;
   }
   if (!env.databaseUrl)

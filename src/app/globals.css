@@ -1,14 +1,14 @@
 @import "tailwindcss";
 @font-face {
-  font-family: "Aeonik Pro";
-  src: url("/fonts/AeonikPro-Regular.woff2") format("woff2");
+  font-family: "Visby";
+  src: url("/fonts/Visby-Regular.woff2") format("woff2");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
-  font-family: "Aeonik Pro";
-  src: url("/fonts/AeonikPro-Medium.woff2") format("woff2");
+  font-family: "Visby";
+  src: url("/fonts/Visby-Medium.woff2") format("woff2");
   font-weight: 500 700;
   font-style: normal;
   font-display: swap;
@@ -21,7 +21,7 @@
   --muted: #a3a3a3;
   --lime: #c7ff97;
   --border: #ffffff24;
-  --font: "Aeonik Pro", Arial, Helvetica, sans-serif;
+  --font: "Visby", Arial, Helvetica, sans-serif;
 }
 * {
   box-sizing: border-box;
@@ -2945,5 +2945,51 @@ summary:focus-visible {
   *:after {
     animation: none !important;
     transition: none !important;
+  }
+}
+
+.explore-button {
+  background: none;
+  border: 0;
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  font-size: 13px;
+}
+.explore-menu {
+  position: absolute;
+  z-index: 40;
+  left: 24px;
+  right: 24px;
+  top: 108px;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 24px;
+  padding: 28px;
+  background: #101010;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+.explore-menu a {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 0;
+  color: var(--text);
+}
+.explore-menu a span {
+  color: var(--muted);
+  font-size: 13px;
+}
+@media (max-width: 809px) {
+  .explore-menu {
+    top: 88px;
+    left: 12px;
+    right: 12px;
+    grid-template-columns: 1fr 1fr;
+    max-height: 70vh;
+    overflow: auto;
   }
 }

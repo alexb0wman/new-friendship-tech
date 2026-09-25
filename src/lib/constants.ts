@@ -29,6 +29,12 @@ export const INTERESTS = [
   "Outdoors",
 ];
 export const INTENTS = ["Coffee", "Food", "Drinks", "Work", "Walk", "Event", "Business"];
+export const CITIES = [
+  { slug: "tokyo", name: "Tokyo" },
+  { slug: "new-york", name: "New York" },
+  { slug: "los-angeles", name: "Los Angeles" },
+  { slug: "paris", name: "Paris" },
+] as const;
 export const NEIGHBORHOODS = [
   "Anywhere in Tokyo",
   "Shibuya",

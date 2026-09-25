@@ -86,7 +86,7 @@ export async function listPlaces(user: s.UserRow | null, params: URLSearchParams
         eq(s.places.published, true),
         paid ? undefined : eq(s.places.preview, true),
         category && category !== "All" ? eq(s.places.category, category as Category) : undefined,
-        area && area !== "Anywhere in Tokyo" ? eq(s.places.neighborhood, area) : undefined,
+        area && !area.startsWith("Anywhere") ? eq(s.places.neighborhood, area) : undefined,
         query
           ? or(
               ilike(s.places.name, "%" + query + "%"),

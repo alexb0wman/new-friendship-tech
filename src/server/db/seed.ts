@@ -22,6 +22,9 @@ export async function seedDemo(db: Database) {
   if (!isDemo()) throw new Error("Sample data is local-demo only");
   await db.insert(s.cities).values([
     { slug: "tokyo", name: "Tokyo", timezone: "Asia/Tokyo", published: true },
+    { slug: "new-york", name: "New York", timezone: "America/New_York", published: true },
+    { slug: "los-angeles", name: "Los Angeles", timezone: "America/Los_Angeles", published: true },
+    { slug: "paris", name: "Paris", timezone: "Europe/Paris", published: true },
     { slug: "seoul", name: "Seoul", timezone: "Asia/Seoul", published: false },
   ]);
   const members = [

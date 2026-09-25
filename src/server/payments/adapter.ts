@@ -2,6 +2,7 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { isDemo, config } from "@/server/config";
 import { AppError, invariant } from "@/server/errors";
 import type { Obligation, SettlementEvidence } from "./verification";
+import { readOgTransfer } from "./og-chain";
 import type { invoices } from "@/server/db/schema";
 export type InvoiceRow = typeof invoices.$inferSelect;
 export interface PaymentAdapter {
@@ -53,13 +54,39 @@ class OgPayMerchantAdapter implements PaymentAdapter {
       503,
     );
   }
-  async inspect(_invoice: InvoiceRow): Promise<never> {
-    throw new AppError(
-      "PAYMENT_ROUTE_UNVERIFIED",
-      "Merchant settlement verification is not configured.",
-      503,
-      true,
-    );
+  async inspect(invoice: InvoiceRow): Promise<SettlementEvidence | null> {
+    const recipient = process.env.PAYMENT_RECIPIENT?.toLowerCase();
+    if (!invoice.sourceTx || !recipient) {
+      throw new AppError(
+        "PAYMENT_ROUTE_UNVERIFIED",
+        "Merchant settlement verification is not configured.",
+        503,
+        true,
+      );
+    }
+    const seen = await readOgTransfer(invoice.sourceTx);
+    if (!seen) return null;
+    const paid =
+      seen.token && seen.token.to === recipient
+        ? { asset: seen.token.asset, amount: seen.token.amount, from: seen.token.from }
+        : seen.nativeTo === recipient
+          ? { asset: "0g", amount: seen.nativeAmount, from: seen.from }
+          : null;
+    if (!paid || paid.from !== invoice.quote.sourceWallet.toLowerCase()) {
+      throw new AppError("WRONG_RECIPIENT", "The transaction did not pay the configured treasury.", 409);
+    }
+    return {
+      chainId: seen.chainId,
+      recipient,
+      asset: paid.asset,
+      amount: paid.amount,
+      sourceWallet: paid.from,
+      providerQuoteId: invoice.quote.providerQuoteId,
+      txHash: seen.txHash,
+      settlementIndex: `og:${seen.txHash}`,
+      success: seen.success,
+      finalized: seen.finalized,
+    };
   }
 }
 export function paymentAdapter(provider?: string): PaymentAdapter {

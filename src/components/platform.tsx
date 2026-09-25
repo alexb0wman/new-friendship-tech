@@ -6,6 +6,20 @@ import { NowView, EventsView } from "./views/now-events";
 import { MembershipView, CheckoutView } from "./views/membership";
 import { OnboardingView, SettingsView } from "./views/account";
 import { AdminView } from "./views/admin";
+import {
+  AtlasView,
+  CitiesView,
+  DirectoryView,
+  EditorialView,
+  IntroductionsView,
+  InviteTreeView,
+  NetworkView,
+  OperationsView,
+  PolicyView,
+  StandingsView,
+  TrustView,
+  WhereView,
+} from "./views/superapp";
 import { Empty } from "./ui";
 export function Platform({ path }: { path: string[] }) {
   const [first, second, third] = path;
@@ -17,6 +31,20 @@ export function Platform({ path }: { path: string[] }) {
   else if (first === "settings") screen = <SettingsView />;
   else if (first === "onboarding") screen = <OnboardingView />;
   else if (first === "admin") screen = <AdminView />;
+  else if (first === "network") screen = <NetworkView />;
+  else if (first === "atlas") screen = <AtlasView />;
+  else if (first === "companies") screen = <DirectoryView kind="companies" />;
+  else if (first === "capital") screen = <DirectoryView kind="capital" />;
+  else if (first === "cities") screen = <CitiesView />;
+  else if (first === "intelligence") screen = <EditorialView kind="intelligence" />;
+  else if (first === "read") screen = <EditorialView kind="read" />;
+  else if (first === "where-to-be") screen = <WhereView />;
+  else if (first === "standings") screen = <StandingsView />;
+  else if (first === "trust") screen = <TrustView />;
+  else if (first === "policy") screen = <PolicyView />;
+  else if (first === "introductions") screen = <IntroductionsView />;
+  else if (first === "invite-tree") screen = <InviteTreeView />;
+  else if (first === "operations") screen = <OperationsView />;
   else if (first === "members" && second) screen = <MemberView id={second} />;
   else if (first === "privacy" || first === "terms")
     screen = (
