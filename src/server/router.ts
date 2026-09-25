@@ -18,6 +18,7 @@ import { contactSchema } from "./privacy";
 import { checkoutStatus } from "./payments/adapter";
 import * as payments from "./payments/service";
 import * as ens from "./ens";
+import * as ensWorld from "./ens-world/router";
 
 function ok(
   data: unknown,
@@ -53,6 +54,7 @@ export async function handleApi(request: Request): Promise<Response> {
           ensEnabled: config().ensEnabled,
           ensWriteEnabled: config().ensWriteEnabled,
           actors: config().demo ? DEMO_ACTORS : [],
+          ...ensWorld.publicConfig(),
         },
         correlationId,
       );
@@ -73,11 +75,12 @@ export async function handleApi(request: Request): Promise<Response> {
       });
     }
     const optional =
-      method === "GET" &&
-      (["cities", "places", "events", "plans"].includes(path) ||
-        path.startsWith("places/") ||
-        path === "content" ||
-        path.startsWith("content/"));
+      (method === "GET" &&
+        (["cities", "places", "events", "plans"].includes(path) ||
+          path.startsWith("places/") ||
+          path === "content" ||
+          path.startsWith("content/"))) ||
+      ensWorld.isPublicPath(path, method);
     const actor = await actorFromRequest(request, !optional);
     await rateLimit(request, actor?.id);
     if (path === "cities" && method === "GET")
@@ -97,6 +100,17 @@ export async function handleApi(request: Request): Promise<Response> {
       return ok(await editorial.listContent(actor, url.searchParams), correlationId);
     if (path.startsWith("content/") && method === "GET")
       return ok(await editorial.contentBySlug(actor, path.split("/")[1]), correlationId);
+    // ENSv2 trips, tables, World ID and concierge routes live in src/server/ens-world/router.ts.
+    const handled = await ensWorld.handle({
+      path,
+      method,
+      request,
+      url,
+      actor,
+      correlationId,
+      ok: (data, status, extra) => ok(data, correlationId, status, extra),
+    });
+    if (handled) return handled;
     invariant(actor, "UNAUTHENTICATED", "Sign in to continue.", 401);
     if (path === "me" && method === "GET") return ok(await social.me(actor), correlationId);
     if (path === "me/profile" && method === "PATCH") {
