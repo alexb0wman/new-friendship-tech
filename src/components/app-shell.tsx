@@ -11,6 +11,7 @@ import {
   Palette,
   Music2,
   Cpu,
+  Bell,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { useResource, useSession } from "./session";
