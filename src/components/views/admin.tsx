@@ -70,7 +70,8 @@ export function AdminView() {
     event.preventDefault();
     setFormError(null);
     try {
-      if (mode === "content") await api("admin/content", { method: "POST", body: contentJson });
+      if (mode === "content")
+        await api("admin/content", { method: "POST", body: contentJson });
       else await api("admin/places", { method: "POST", body: json });
       setOpen(false);
       await reload();
