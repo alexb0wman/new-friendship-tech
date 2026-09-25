@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { runWorkerOnce } from "@/server/payments/service";
+import { runEnsWorkerOnce } from "@/server/ens-v2/jobs";
+import "@/server/ens-world/handlers";
 import { closeDb } from "@/server/db";
 import { isDemo } from "@/server/config";
 import { loadRuntimeSecrets } from "@/server/secrets";
@@ -17,7 +19,9 @@ async function main() {
     throw new Error("The isolated demo reconciles in-process. A separate worker needs PostgreSQL.");
   while (running) {
     try {
-      const worked = await runWorkerOnce(workerId);
+      const paymentsWorked = await runWorkerOnce(workerId);
+      const ensWorked = await runEnsWorkerOnce(workerId);
+      const worked = paymentsWorked || ensWorked;
       console.log(
         JSON.stringify({
           event: "worker.heartbeat",
