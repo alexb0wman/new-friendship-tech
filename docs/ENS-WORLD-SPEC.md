@@ -45,14 +45,14 @@ Pitch in one line: your Tokyo trip is a name, your concierge is a name with perm
 
 Requirements: built on ENSv2 Sepolia, ENSv2 central not cosmetic, functional demo with no hardcoded values, live demo link, open source.
 
-| Judge theme | Where it shows up |
-|---|---|
-| Registry hierarchy | `<parent>.eth` → `tokyo` (UserRegistry) → trips (tokenised) and `tables` (data-only) |
+| Judge theme                                          | Where it shows up                                                                                 |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Registry hierarchy                                   | `<parent>.eth` → `tokyo` (UserRegistry) → trips (tokenised) and `tables` (data-only)              |
 | Permissioned Registry, expiring / soulbound subnames | Trip registration with `expiry = departureAt` and a role bitmap without `ROLE_CAN_TRANSFER_ADMIN` |
-| Permissioned Resolver, per-record roles | Concierge wallet holds setter roles for two text keys only |
-| Record aliasing | New trip names link to the default Tokyo record bundle until personalised |
-| Agents as namespaces with delegated permissions | `concierge.<parent>.eth` with ENSIP-26 `agent-context` and `agent-endpoint[mcp]` |
-| Data-only subnames via resolver | Tables exist because records were written, no token minted |
+| Permissioned Resolver, per-record roles              | Concierge wallet holds setter roles for two text keys only                                        |
+| Record aliasing                                      | New trip names link to the default Tokyo record bundle until personalised                         |
+| Agents as namespaces with delegated permissions      | `concierge.<parent>.eth` with ENSIP-26 `agent-context` and `agent-endpoint[mcp]`                  |
+| Data-only subnames via resolver                      | Tables exist because records were written, no token minted                                        |
 
 ### World: Best Use of IDKit ($2.5k x 2)
 
@@ -95,29 +95,29 @@ Decisions:
 
 Trip name (`maya.tokyo.<parent>.eth`), written by the operator wallet on the app resolver:
 
-| Record | Value | Written by |
-|---|---|---|
-| `addr` (coinType 60) | member's verified wallet | operator, at registration |
-| `addr` (0G chain, ENSIP-11 coinType = `0x80000000 + chainId`) | same or a chosen wallet | operator, opt-in from settings ("pay record") |
-| `text description` | member's short bio (existing feature, keep wallet-signed path) | member or operator |
-| `text avatar` | linked default until personalised | default bundle |
-| `text friendship.trip` | JSON `{ city, arrivesAt, departsAt, verifiedHuman: true }` | operator |
-| `text friendship.now` | JSON `{ kind, area, until }` or empty | concierge only |
+| Record                                                        | Value                                                          | Written by                                    |
+| ------------------------------------------------------------- | -------------------------------------------------------------- | --------------------------------------------- |
+| `addr` (coinType 60)                                          | member's verified wallet                                       | operator, at registration                     |
+| `addr` (0G chain, ENSIP-11 coinType = `0x80000000 + chainId`) | same or a chosen wallet                                        | operator, opt-in from settings ("pay record") |
+| `text description`                                            | member's short bio (existing feature, keep wallet-signed path) | member or operator                            |
+| `text avatar`                                                 | linked default until personalised                              | default bundle                                |
+| `text friendship.trip`                                        | JSON `{ city, arrivesAt, departsAt, verifiedHuman: true }`     | operator                                      |
+| `text friendship.now`                                         | JSON `{ kind, area, until }` or empty                          | concierge only                                |
 
 Table name (`ramen-0927.tables.tokyo.<parent>.eth`), data-only:
 
-| Record | Value | Written by |
-|---|---|---|
+| Record                  | Value               | Written by     |
+| ----------------------- | ------------------- | -------------- |
 | `text friendship.table` | JSON, schema in 6.3 | concierge only |
 
 Concierge name (`concierge.<parent>.eth`):
 
-| Record | Value |
-|---|---|
-| `addr` (60) | concierge wallet |
-| `text agent-context` | Markdown: what it does, how to talk to it, which keys it may write, link to the MCP endpoint |
-| `text agent-endpoint[mcp]` | `https://<app-origin>/api/mcp` |
-| `text agent-endpoint[web]` | `https://<app-origin>/concierge` |
+| Record                     | Value                                                                                        |
+| -------------------------- | -------------------------------------------------------------------------------------------- |
+| `addr` (60)                | concierge wallet                                                                             |
+| `text agent-context`       | Markdown: what it does, how to talk to it, which keys it may write, link to the MCP endpoint |
+| `text agent-endpoint[mcp]` | `https://<app-origin>/api/mcp`                                                               |
+| `text agent-endpoint[web]` | `https://<app-origin>/concierge`                                                             |
 
 Default bundle (record linked to newly registered trips until the member personalises): `avatar` = city artwork, `url` = app origin, `description` = "Travelling with New Friendship Tech".
 
@@ -127,15 +127,15 @@ Default bundle (record linked to newly registered trips until the member persona
 
 Package: `@ensdomains/contracts-v2` (ABIs). Library: `viem` (already in the repo). Addresses come from the Deployments page, Sepolia ENSv2 beta section; put them in `src/server/ens-v2/addresses.ts` with a comment that they are beta and may change:
 
-| Contract | Sepolia address |
-|---|---|
-| RootRegistry | `0x9703dbd26dab89504490994138cf2c575251a9ce` |
-| ETHRegistry | `0x657ea849311d3d5823348dded7c2aaafb3ede09e` |
-| ETHRegistrar | `0xabe76f6c8dfced81aa5a2bb8034202a7136b94ca` |
-| VerifiableFactory | `0x9e726eb570beb6bceb495ab8cda7df517d4e841c` |
-| UserRegistryImpl | `0xa80338aaa8d23831cea25e858d1774534abb0263` |
-| PermissionedResolverImpl | `0x14f09fd05d4585759e54844dc9b00147131cf243` |
-| UniversalResolverV2 | `0x5d25c1d6acbb71b7a28aa7899618a3412a8303e3` |
+| Contract                    | Sepolia address                              |
+| --------------------------- | -------------------------------------------- |
+| RootRegistry                | `0x9703dbd26dab89504490994138cf2c575251a9ce` |
+| ETHRegistry                 | `0x657ea849311d3d5823348dded7c2aaafb3ede09e` |
+| ETHRegistrar                | `0xabe76f6c8dfced81aa5a2bb8034202a7136b94ca` |
+| VerifiableFactory           | `0x9e726eb570beb6bceb495ab8cda7df517d4e841c` |
+| UserRegistryImpl            | `0xa80338aaa8d23831cea25e858d1774534abb0263` |
+| PermissionedResolverImpl    | `0x14f09fd05d4585759e54844dc9b00147131cf243` |
+| UniversalResolverV2         | `0x5d25c1d6acbb71b7a28aa7899618a3412a8303e3` |
 | MockUSDC (registration fee) | `0x16f95d91dba7da3aca778ec053df0ff6c6a8aa8e` |
 
 Do not hardcode a Universal Resolver into resolution calls; viem's Sepolia chain config resolves through the canonical proxy (`0xeEeEEEeE14D718C2B47D9923Deab1335E144EeEe`). Re-check the Deployments page on build day; the beta redeploys.
@@ -225,53 +225,53 @@ Do not edit applied migrations. Postgres stays authoritative; chain state mirror
 
 ### 6.1 `trips`
 
-| column | type | notes |
-|---|---|---|
-| id | uuid pk | |
-| user_id | fk users | one active trip per user per city (partial unique index on `status = 'active'`) |
-| city | text | `tokyo` in v1 |
-| label | text | normalised handle, unique per city while active |
-| ens_name | text | full name |
-| labelhash | bytea/text | |
-| registry | text | city registry address |
-| arrives_at, departs_at | timestamptz | departs_at = on-chain expiry |
-| status | enum | `pending_human`, `pending_chain`, `active`, `ended`, `expired`, `failed` |
-| chain_tx | text | registration tx hash |
-| chain_verified_at | timestamptz | after receipt + re-resolve |
-| human_proof_id | fk human_proofs | |
-| created_at, updated_at | | |
+| column                 | type            | notes                                                                           |
+| ---------------------- | --------------- | ------------------------------------------------------------------------------- |
+| id                     | uuid pk         |                                                                                 |
+| user_id                | fk users        | one active trip per user per city (partial unique index on `status = 'active'`) |
+| city                   | text            | `tokyo` in v1                                                                   |
+| label                  | text            | normalised handle, unique per city while active                                 |
+| ens_name               | text            | full name                                                                       |
+| labelhash              | bytea/text      |                                                                                 |
+| registry               | text            | city registry address                                                           |
+| arrives_at, departs_at | timestamptz     | departs_at = on-chain expiry                                                    |
+| status                 | enum            | `pending_human`, `pending_chain`, `active`, `ended`, `expired`, `failed`        |
+| chain_tx               | text            | registration tx hash                                                            |
+| chain_verified_at      | timestamptz     | after receipt + re-resolve                                                      |
+| human_proof_id         | fk human_proofs |                                                                                 |
+| created_at, updated_at |                 |                                                                                 |
 
 ### 6.2 `human_proofs`
 
-| column | type | notes |
-|---|---|---|
-| id | uuid pk | |
-| user_id | fk users | |
-| action | text | `trip-activate` |
-| city | text | |
-| nullifier | numeric(78,0) | unique `(action, city, nullifier)` while a trip is active |
-| issuer_schema_id | text | |
-| expires_at_min | timestamptz | |
-| verified_at | timestamptz | |
+| column           | type          | notes                                                     |
+| ---------------- | ------------- | --------------------------------------------------------- |
+| id               | uuid pk       |                                                           |
+| user_id          | fk users      |                                                           |
+| action           | text          | `trip-activate`                                           |
+| city             | text          |                                                           |
+| nullifier        | numeric(78,0) | unique `(action, city, nullifier)` while a trip is active |
+| issuer_schema_id | text          |                                                           |
+| expires_at_min   | timestamptz   |                                                           |
+| verified_at      | timestamptz   |                                                           |
 
 ### 6.3 `gatherings` (tables; avoid the SQL word)
 
-| column | type | notes |
-|---|---|---|
-| id | uuid pk | |
-| host_user_id | fk users | must have an active trip |
-| trip_id | fk trips | |
-| city | text | |
-| kind | enum | coffee, breakfast, lunch, dinner, drinks |
-| place_slug | text nullable | links to catalog place |
-| area | text | neighbourhood string |
-| starts_at | timestamptz | |
-| seats | int | including host; 2..8 |
-| label, ens_name | text | |
-| status | enum | `open`, `full`, `closed`, `cancelled` |
-| split_status | enum | `none`, `pending`, `settled` |
-| chain_record_tx | text | last concierge write |
-| created_at, updated_at | | |
+| column                 | type          | notes                                    |
+| ---------------------- | ------------- | ---------------------------------------- |
+| id                     | uuid pk       |                                          |
+| host_user_id           | fk users      | must have an active trip                 |
+| trip_id                | fk trips      |                                          |
+| city                   | text          |                                          |
+| kind                   | enum          | coffee, breakfast, lunch, dinner, drinks |
+| place_slug             | text nullable | links to catalog place                   |
+| area                   | text          | neighbourhood string                     |
+| starts_at              | timestamptz   |                                          |
+| seats                  | int           | including host; 2..8                     |
+| label, ens_name        | text          |                                          |
+| status                 | enum          | `open`, `full`, `closed`, `cancelled`    |
+| split_status           | enum          | `none`, `pending`, `settled`             |
+| chain_record_tx        | text          | last concierge write                     |
+| created_at, updated_at |               |                                          |
 
 On-chain `friendship.table` JSON (kept under 1 KB):
 
@@ -295,33 +295,33 @@ Attendees are ENS names, never account IDs or wallets. Guests (plus-ones) are a 
 
 ### 6.4 `gathering_attendees`
 
-| column | type | notes |
-|---|---|---|
-| id | uuid pk | |
-| gathering_id | fk | |
-| user_id | fk users | |
-| trip_id | fk trips | |
-| role | enum | `host`, `member` |
-| plus_ones | int | 0 or 1 in v1 |
-| status | enum | `requested`, `approved`, `declined`, `left` |
-| approval_id | fk agent_approvals nullable | the World step-up that admitted them |
-| share_cents | int nullable | set at split |
-| paid_tx | text nullable | |
+| column       | type                        | notes                                       |
+| ------------ | --------------------------- | ------------------------------------------- |
+| id           | uuid pk                     |                                             |
+| gathering_id | fk                          |                                             |
+| user_id      | fk users                    |                                             |
+| trip_id      | fk trips                    |                                             |
+| role         | enum                        | `host`, `member`                            |
+| plus_ones    | int                         | 0 or 1 in v1                                |
+| status       | enum                        | `requested`, `approved`, `declined`, `left` |
+| approval_id  | fk agent_approvals nullable | the World step-up that admitted them        |
+| share_cents  | int nullable                | set at split                                |
+| paid_tx      | text nullable               |                                             |
 
 ### 6.5 `agent_approvals`
 
-| column | type | notes |
-|---|---|---|
-| id | uuid pk | |
-| user_id | fk users | |
-| action | text | `now.publish`, `table.request`, `table.approve`, `table.claim`, `contact.reveal` |
-| payload | jsonb | what will happen, shown to the human |
-| nonce | text unique | |
-| status | enum | `pending`, `approved`, `denied`, `expired`, `consumed` |
-| world_sub | text | pairwise sub that approved |
-| auth_time | timestamptz | |
-| expires_at | timestamptz | |
-| consumed_at | timestamptz | |
+| column      | type        | notes                                                                            |
+| ----------- | ----------- | -------------------------------------------------------------------------------- |
+| id          | uuid pk     |                                                                                  |
+| user_id     | fk users    |                                                                                  |
+| action      | text        | `now.publish`, `table.request`, `table.approve`, `table.claim`, `contact.reveal` |
+| payload     | jsonb       | what will happen, shown to the human                                             |
+| nonce       | text unique |                                                                                  |
+| status      | enum        | `pending`, `approved`, `denied`, `expired`, `consumed`                           |
+| world_sub   | text        | pairwise sub that approved                                                       |
+| auth_time   | timestamptz |                                                                                  |
+| expires_at  | timestamptz |                                                                                  |
+| consumed_at | timestamptz |                                                                                  |
 
 ### 6.6 `ens_jobs`
 
@@ -380,29 +380,29 @@ All handlers are framework-independent Web Request handlers under `src/server/`,
 
 ### 7.7 Routes
 
-| Method | Path | Handler |
-|---|---|---|
-| GET | `/api/world/rp-context` | idkit.rpContext |
-| POST | `/api/world/verify` | trips.activateTrip (proof inside body) |
-| GET | `/api/world/agent/link` | agents.startLink |
-| GET | `/api/world/agent/callback` | agents.finishLink / finishApproval (by state) |
-| GET | `/api/trips/me` | trips.myTrip |
-| POST | `/api/trips/extend` | trips.extendTrip |
-| POST | `/api/trips/end` | trips.endTrip |
-| GET | `/api/trips/:name` | trips.tripByName (public, rate limited) |
-| GET | `/api/gatherings?city=` | gatherings.list |
-| POST | `/api/gatherings` | gatherings.create |
-| GET | `/api/gatherings/:id` | gatherings.detail |
-| POST | `/api/gatherings/:id/request` | gatherings.requestSeat |
-| POST | `/api/gatherings/:id/approve` | gatherings.approveSeat |
-| POST | `/api/gatherings/:id/decline` | gatherings.declineSeat |
-| POST | `/api/gatherings/:id/close` | gatherings.close |
-| POST | `/api/gatherings/:id/split` | split.startSplit |
-| POST | `/api/gatherings/:id/split/paid` | split.reportPayment (hint only) |
-| POST | `/api/concierge/now` | concierge publishNow (returns approval link) |
-| POST | `/api/concierge/chat` | agent.turn |
-| GET | `/api/approvals/:id` | agent_approvals status (polling) |
-| ANY | `/api/mcp` | mcp server |
+| Method | Path                             | Handler                                       |
+| ------ | -------------------------------- | --------------------------------------------- |
+| GET    | `/api/world/rp-context`          | idkit.rpContext                               |
+| POST   | `/api/world/verify`              | trips.activateTrip (proof inside body)        |
+| GET    | `/api/world/agent/link`          | agents.startLink                              |
+| GET    | `/api/world/agent/callback`      | agents.finishLink / finishApproval (by state) |
+| GET    | `/api/trips/me`                  | trips.myTrip                                  |
+| POST   | `/api/trips/extend`              | trips.extendTrip                              |
+| POST   | `/api/trips/end`                 | trips.endTrip                                 |
+| GET    | `/api/trips/:name`               | trips.tripByName (public, rate limited)       |
+| GET    | `/api/gatherings?city=`          | gatherings.list                               |
+| POST   | `/api/gatherings`                | gatherings.create                             |
+| GET    | `/api/gatherings/:id`            | gatherings.detail                             |
+| POST   | `/api/gatherings/:id/request`    | gatherings.requestSeat                        |
+| POST   | `/api/gatherings/:id/approve`    | gatherings.approveSeat                        |
+| POST   | `/api/gatherings/:id/decline`    | gatherings.declineSeat                        |
+| POST   | `/api/gatherings/:id/close`      | gatherings.close                              |
+| POST   | `/api/gatherings/:id/split`      | split.startSplit                              |
+| POST   | `/api/gatherings/:id/split/paid` | split.reportPayment (hint only)               |
+| POST   | `/api/concierge/now`             | concierge publishNow (returns approval link)  |
+| POST   | `/api/concierge/chat`            | agent.turn                                    |
+| GET    | `/api/approvals/:id`             | agent_approvals status (polling)              |
+| ANY    | `/api/mcp`                       | mcp server                                    |
 
 Existing `ens/link`, `ens/lookup`, `ens/description`, `ens/confirm` stay. `ens/lookup` should also accept trip names.
 

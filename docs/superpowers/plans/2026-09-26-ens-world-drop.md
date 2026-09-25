@@ -91,6 +91,7 @@ Level of detail: interfaces, SQL, ABIs, state machines, route tables and test ca
 ### Task 1: Schema, migration, demo actors, DTO types
 
 **Files:**
+
 - Create: `drizzle/0003_trips_tables_world.sql`
 - Modify: `src/server/db/schema.ts` (append after `ensWriteIntents`)
 - Modify: `src/server/db/seed.ts` (`DEMO_ACTORS`, member neighborhoods unchanged)
@@ -99,6 +100,7 @@ Level of detail: interfaces, SQL, ABIs, state machines, route tables and test ca
 - Test: `tests/ens-world-domain.test.ts` (new file, first cases)
 
 **Interfaces:**
+
 - Produces Drizzle tables `trips`, `humanProofs`, `gatherings`, `gatheringAttendees`, `agentApprovals`, `ensJobs`; `users` gains `verifiedHumanAt`, `worldAgentIssuer`, `worldAgentSub`.
 - Produces types `TripStatus`, `GatheringKind`, `GatheringStatus`, `AttendeeStatus`, `ApprovalAction`, `ApprovalStatus`, `EnsJobKind`, `EnsJobSigner`, `TripDTO`, `GatheringSummary`, `GatheringDetail`, `ApprovalDTO`.
 - `DEMO_IDS` gains nothing; `DEMO_ACTORS` gains `kenji` and `ari`.
@@ -240,7 +242,7 @@ CREATE INDEX "agent_approvals_user_idx" ON "agent_approvals" USING btree ("user_
 CREATE INDEX "ens_jobs_due_idx" ON "ens_jobs" USING btree ("status","run_after");
 ```
 
-- [ ] **Step 2: Append the Drizzle definitions** (same column names, `numeric("nullifier", { precision: 78, scale: 0 })`, partial unique indexes with `.where(sql\`status IN ('pending_chain','active')\`)`, checks with `check(...)`). Add `verifiedHumanAt: time("verified_human_at")`, `worldAgentIssuer: text("world_agent_issuer")`, `worldAgentSub: text("world_agent_sub")` to `users`. Export row types `TripRow`, `GatheringRow`, `AttendeeRow`, `ApprovalRow`, `EnsJobRow`.
+- [ ] **Step 2: Append the Drizzle definitions** (same column names, `numeric("nullifier", { precision: 78, scale: 0 })`, partial unique indexes with `.where(sql\`status IN ('pending_chain','active')\`)`, checks with `check(...)`). Add `verifiedHumanAt: time("verified_human_at")`, `worldAgentIssuer: text("world_agent_issuer")`, `worldAgentSub: text("world_agent_sub")`to`users`. Export row types `TripRow`, `GatheringRow`, `AttendeeRow`, `ApprovalRow`, `EnsJobRow`.
 
 - [ ] **Step 3: Types** in `src/lib/types.ts`:
 
@@ -249,37 +251,92 @@ export type TripStatus = "pending_chain" | "active" | "ended" | "expired" | "fai
 export type GatheringKind = "coffee" | "breakfast" | "lunch" | "dinner" | "drinks";
 export type GatheringStatus = "open" | "full" | "closed" | "cancelled";
 export type AttendeeStatus = "requested" | "approved" | "declined" | "left";
-export type ApprovalAction = "agent.link" | "now.publish" | "table.request" | "table.approve" | "contact.reveal";
+export type ApprovalAction =
+  "agent.link" | "now.publish" | "table.request" | "table.approve" | "contact.reveal";
 export type ApprovalStatus = "pending" | "approved" | "denied" | "expired" | "consumed";
-export type EnsJobKind = "trip.register" | "trip.renew" | "trip.expire" | "record.set" | "table.write" | "split.verify";
+export type EnsJobKind =
+  "trip.register" | "trip.renew" | "trip.expire" | "record.set" | "table.write" | "split.verify";
 export type EnsJobSigner = "operator" | "concierge" | "none";
-export interface NowRecord { kind: string; area: string; until: string }
+export interface NowRecord {
+  kind: string;
+  area: string;
+  until: string;
+}
 export interface TripDTO {
-  id: string; city: string; label: string; name: string; status: TripStatus;
-  arrivesAt: string; departsAt: string; chainTx: string | null; recordsTx: string | null;
-  chainVerifiedAt: string | null; verifiedHuman: boolean; now: NowRecord | null;
-  payAddress: string | null; explorer: { name: string; tx: string | null };
+  id: string;
+  city: string;
+  label: string;
+  name: string;
+  status: TripStatus;
+  arrivesAt: string;
+  departsAt: string;
+  chainTx: string | null;
+  recordsTx: string | null;
+  chainVerifiedAt: string | null;
+  verifiedHuman: boolean;
+  now: NowRecord | null;
+  payAddress: string | null;
+  explorer: { name: string; tx: string | null };
 }
 export interface GatheringSummary {
-  id: string; city: string; kind: GatheringKind; area: string; place: { id: string; slug: string; name: string } | null;
-  startsAt: string; seats: number; seatsLeft: number; status: GatheringStatus; label: string; name: string;
-  host: { name: string; displayName: string; verifiedHuman: boolean }; chainRecordTx: string | null;
-  chainVerifiedAt: string | null; mine: boolean; myStatus: AttendeeStatus | null;
+  id: string;
+  city: string;
+  kind: GatheringKind;
+  area: string;
+  place: { id: string; slug: string; name: string } | null;
+  startsAt: string;
+  seats: number;
+  seatsLeft: number;
+  status: GatheringStatus;
+  label: string;
+  name: string;
+  host: { name: string; displayName: string; verifiedHuman: boolean };
+  chainRecordTx: string | null;
+  chainVerifiedAt: string | null;
+  mine: boolean;
+  myStatus: AttendeeStatus | null;
   explorer: { name: string; tx: string | null };
 }
 export interface AttendeeDTO {
-  id: string; name: string; displayName: string; role: "host" | "member"; plusOnes: number;
-  status: AttendeeStatus; verifiedHuman: boolean; shareCents: number | null; paidTx: string | null; paidVerifiedAt: string | null;
+  id: string;
+  name: string;
+  displayName: string;
+  role: "host" | "member";
+  plusOnes: number;
+  status: AttendeeStatus;
+  verifiedHuman: boolean;
+  shareCents: number | null;
+  paidTx: string | null;
+  paidVerifiedAt: string | null;
 }
 export interface GatheringDetail extends GatheringSummary {
-  attendees: AttendeeDTO[]; guests: number;
-  split: { status: "none" | "pending" | "settled"; totalCents: number | null; unitCents: number | null; hostCents: number | null;
-    mine: { shareCents: number; payTo: string; token: string; amountBaseUnits: string; paidTx: string | null; verified: boolean } | null };
+  attendees: AttendeeDTO[];
+  guests: number;
+  split: {
+    status: "none" | "pending" | "settled";
+    totalCents: number | null;
+    unitCents: number | null;
+    hostCents: number | null;
+    mine: {
+      shareCents: number;
+      payTo: string;
+      token: string;
+      amountBaseUnits: string;
+      paidTx: string | null;
+      verified: boolean;
+    } | null;
+  };
   record: string | null;
 }
 export interface ApprovalDTO {
-  id: string; action: ApprovalAction; summary: string; status: ApprovalStatus; url: string | null;
-  expiresAt: string; resultId: string | null; simulated: boolean;
+  id: string;
+  action: ApprovalAction;
+  summary: string;
+  status: ApprovalStatus;
+  url: string | null;
+  expiresAt: string;
+  resultId: string | null;
+  simulated: boolean;
 }
 ```
 
@@ -299,33 +356,76 @@ export interface ApprovalDTO {
 
 ```ts
 // roles.ts (all bigint)
-export const REGISTRY = { ROLE_REGISTRAR: 1n << 0n, ROLE_REGISTER_RESERVED: 1n << 4n, ROLE_SET_PARENT: 1n << 8n, ROLE_UNREGISTER: 1n << 12n, ROLE_RENEW: 1n << 16n, ROLE_SET_SUBREGISTRY: 1n << 20n, ROLE_SET_RESOLVER: 1n << 24n, ROLE_SET_URI: 1n << 36n, ROLE_UPGRADE: 1n << 124n };
-export const RESOLVER = { ROLE_SET_ADDRESS: 1n << 0n, ROLE_SET_TEXT: 1n << 4n, ROLE_SET_CONTENTHASH: 1n << 8n, ROLE_SET_ABI: 1n << 12n, ROLE_SET_INTERFACE: 1n << 16n, ROLE_SET_NAME: 1n << 20n, ROLE_SET_DATA: 1n << 24n, ROLE_LINK: 1n << 28n, ROLE_CAN_NAME: 1n << 120n, ROLE_UPGRADE: 1n << 124n };
+export const REGISTRY = {
+  ROLE_REGISTRAR: 1n << 0n,
+  ROLE_REGISTER_RESERVED: 1n << 4n,
+  ROLE_SET_PARENT: 1n << 8n,
+  ROLE_UNREGISTER: 1n << 12n,
+  ROLE_RENEW: 1n << 16n,
+  ROLE_SET_SUBREGISTRY: 1n << 20n,
+  ROLE_SET_RESOLVER: 1n << 24n,
+  ROLE_SET_URI: 1n << 36n,
+  ROLE_UPGRADE: 1n << 124n,
+};
+export const RESOLVER = {
+  ROLE_SET_ADDRESS: 1n << 0n,
+  ROLE_SET_TEXT: 1n << 4n,
+  ROLE_SET_CONTENTHASH: 1n << 8n,
+  ROLE_SET_ABI: 1n << 12n,
+  ROLE_SET_INTERFACE: 1n << 16n,
+  ROLE_SET_NAME: 1n << 20n,
+  ROLE_SET_DATA: 1n << 24n,
+  ROLE_LINK: 1n << 28n,
+  ROLE_CAN_NAME: 1n << 120n,
+  ROLE_UPGRADE: 1n << 124n,
+};
 export const admin = (role: bigint) => role << 128n;
 export const ROLE_CAN_TRANSFER_ADMIN = (1n << 28n) << 128n;
 export const ALL_ROLES = 0x1111111111111111111111111111111111111111111111111111111111111111n;
 export const TRIP_OWNER_BITMAP = REGISTRY.ROLE_SET_RESOLVER | admin(REGISTRY.ROLE_SET_RESOLVER);
-export const OWNER_BITMAP = REGISTRY.ROLE_SET_SUBREGISTRY | admin(REGISTRY.ROLE_SET_SUBREGISTRY) | REGISTRY.ROLE_SET_RESOLVER | admin(REGISTRY.ROLE_SET_RESOLVER) | ROLE_CAN_TRANSFER_ADMIN;
+export const OWNER_BITMAP =
+  REGISTRY.ROLE_SET_SUBREGISTRY |
+  admin(REGISTRY.ROLE_SET_SUBREGISTRY) |
+  REGISTRY.ROLE_SET_RESOLVER |
+  admin(REGISTRY.ROLE_SET_RESOLVER) |
+  ROLE_CAN_TRANSFER_ADMIN;
 export const CONCIERGE_TEXT_KEYS = ["friendship.now", "friendship.table"] as const;
 export const hasRole = (bitmap: bigint, role: bigint) => (bitmap & role) === role;
 
 // names.ts
-export const labelSchema: z.ZodType<string>;            // ENSIP-15 normalised, /^[a-z0-9](?:[a-z0-9-]{1,30}[a-z0-9])$/, 3..32
-export function suggestLabel(displayName: string): string;   // first token, normalised, fallback "friend"
-export function tripName(city: string, label: string): string;    // `${label}.${city}.${parent}`
-export function tableName(city: string, label: string): string;   // `${label}.tables.${city}.${parent}`
+export const labelSchema: z.ZodType<string>; // ENSIP-15 normalised, /^[a-z0-9](?:[a-z0-9-]{1,30}[a-z0-9])$/, 3..32
+export function suggestLabel(displayName: string): string; // first token, normalised, fallback "friend"
+export function tripName(city: string, label: string): string; // `${label}.${city}.${parent}`
+export function tableName(city: string, label: string): string; // `${label}.tables.${city}.${parent}`
 export function tableLabel(kind: GatheringKind, startsAt: Date, suffix?: string): string; // `${kind}-${MMDD}-${HHmm}` JST, plus `-${suffix}`
-export function conciergeName(city?: string): string;   // `concierge.${parent}` or `concierge.${city}.${parent}`
-export function dnsName(name: string): `0x${string}`;    // toHex(packetToBytes(name))
-export function labelId(label: string): bigint;          // BigInt(keccak256(toHex(label)))
+export function conciergeName(city?: string): string; // `concierge.${parent}` or `concierge.${city}.${parent}`
+export function dnsName(name: string): `0x${string}`; // toHex(packetToBytes(name))
+export function labelId(label: string): bigint; // BigInt(keccak256(toHex(label)))
 export const DEFAULT_TRIP_RECORDS: { avatar: string; url: string; description: string }; // "/art/tokyo.svg" made absolute with APP_ORIGIN, origin, "Travelling with New Friendship Tech"
 export const FAR_FUTURE_EXPIRY = 4102444800; // 2100-01-01
 
 // addresses.ts
-export const SEPOLIA = { rootRegistry, ethRegistry, ethRegistrar, verifiableFactory, userRegistryImpl, permissionedResolverImpl, universalResolverV2, universalHelper, mockUsdc } as const; // values from docs, lower-case
-export function parentName(): string;                    // ENS_PARENT_NAME, default "friendship-demo.eth" in demo, required otherwise
-export function ensWorldEnv(): { parentRegistry, cityRegistryTokyo, appResolver, operatorKey, conciergeKey, rpcUrl } | null;
-export function explorerName(name: string): string;      // https://explorer.ens.dev/... (Sepolia explorer per docs) ; simulated: "#"
+export const SEPOLIA = {
+  rootRegistry,
+  ethRegistry,
+  ethRegistrar,
+  verifiableFactory,
+  userRegistryImpl,
+  permissionedResolverImpl,
+  universalResolverV2,
+  universalHelper,
+  mockUsdc,
+} as const; // values from docs, lower-case
+export function parentName(): string; // ENS_PARENT_NAME, default "friendship-demo.eth" in demo, required otherwise
+export function ensWorldEnv(): {
+  parentRegistry;
+  cityRegistryTokyo;
+  appResolver;
+  operatorKey;
+  conciergeKey;
+  rpcUrl;
+} | null;
+export function explorerName(name: string): string; // https://explorer.ens.dev/... (Sepolia explorer per docs) ; simulated: "#"
 export function explorerTx(hash: string | null): string | null; // https://sepolia.etherscan.io/tx/
 ```
 
@@ -345,13 +445,36 @@ export function explorerTx(hash: string | null): string | null; // https://sepol
 
 ```ts
 export type Signer = "operator" | "concierge";
-export type RecordWrite = { type: "text"; key: string; value: string } | { type: "addr"; coinType: number; address: string };
-export interface TxSubmission { hash: string; from: string; to: string; calldata: string }
-export interface Receipt { status: "success" | "reverted" | "pending"; from?: string; to?: string; input?: string; blockNumber?: number }
-export class ChainRevert extends AppError { constructor(reason: string) { super("CHAIN_REVERT", reason, 409) } }
+export type RecordWrite =
+  | { type: "text"; key: string; value: string }
+  | { type: "addr"; coinType: number; address: string };
+export interface TxSubmission {
+  hash: string;
+  from: string;
+  to: string;
+  calldata: string;
+}
+export interface Receipt {
+  status: "success" | "reverted" | "pending";
+  from?: string;
+  to?: string;
+  input?: string;
+  blockNumber?: number;
+}
+export class ChainRevert extends AppError {
+  constructor(reason: string) {
+    super("CHAIN_REVERT", reason, 409);
+  }
+}
 export interface ChainAdapter {
   readonly kind: "simulated" | "sepolia";
-  readonly addresses: { operator: string; concierge: string; cityRegistry: string; appResolver: string; usdc: string };
+  readonly addresses: {
+    operator: string;
+    concierge: string;
+    cityRegistry: string;
+    appResolver: string;
+    usdc: string;
+  };
   registerTrip(input: { label: string; owner: string; expiry: number }): Promise<TxSubmission>;
   renewTrip(input: { label: string; expiry: number }): Promise<TxSubmission>;
   unregisterTrip(label: string): Promise<TxSubmission>;
@@ -359,15 +482,35 @@ export interface ChainAdapter {
   simulateSetText(signer: Signer, name: string, key: string, value: string): Promise<void>;
   readText(name: string, key: string): Promise<string | null>;
   readAddr(name: string, coinType?: number): Promise<string | null>;
-  tripState(label: string): Promise<{ status: "available" | "reserved" | "registered"; expiry: number; owner: string | null }>;
+  tripState(
+    label: string,
+  ): Promise<{
+    status: "available" | "reserved" | "registered";
+    expiry: number;
+    owner: string | null;
+  }>;
   receipt(hash: string): Promise<Receipt>;
-  erc20Transfer(hash: string): Promise<{ from: string; to: string; amount: bigint; token: string; success: boolean; finalized: boolean } | null>;
+  erc20Transfer(
+    hash: string,
+  ): Promise<{
+    from: string;
+    to: string;
+    amount: bigint;
+    token: string;
+    success: boolean;
+    finalized: boolean;
+  } | null>;
   simulateTransfer?(input: { from: string; to: string; amount: bigint }): Promise<TxSubmission>; // simulated only
 }
-export function chain(): ChainAdapter;                 // simulated when isDemo(); otherwise SepoliaChain (throws ENS_UNAVAILABLE 503 if env incomplete)
-export function resetSimulatedChain(): void;           // tests
+export function chain(): ChainAdapter; // simulated when isDemo(); otherwise SepoliaChain (throws ENS_UNAVAILABLE 503 if env incomplete)
+export function resetSimulatedChain(): void; // tests
 // proof.ts
-export function assertChainWriteProof(input: { submission: TxSubmission; receipt: Receipt; expected: { name: string; records: RecordWrite[] }; observed: Record<string, string | null> }): void;
+export function assertChainWriteProof(input: {
+  submission: TxSubmission;
+  receipt: Receipt;
+  expected: { name: string; records: RecordWrite[] };
+  observed: Record<string, string | null>;
+}): void;
 // throws ENS_TX_FAILED (reverted/pending), ENS_TX_MISMATCH (from/to/input differ), ENS_RECORD_MISMATCH (observed[key] !== value)
 ```
 
@@ -387,12 +530,22 @@ Sepolia rules: public client as in `ens.ts` (`ccipRead: false`); wallet clients 
 **Interfaces (produces):**
 
 ```ts
-export type JobHandler = (job: EnsJobRow, tx?: undefined) => Promise<{ txHash?: string }>;  // handlers do their own applyWrite for final state
+export type JobHandler = (job: EnsJobRow, tx?: undefined) => Promise<{ txHash?: string }>; // handlers do their own applyWrite for final state
 export function registerEnsJobHandler(kind: EnsJobKind, handler: JobHandler): void;
-export async function enqueueEnsJob(tx: Tx, input: { kind: EnsJobKind; signer: EnsJobSigner; entityId: string; payload?: unknown }): Promise<string>;
-export async function runEnsWorkerOnce(owner?: string): Promise<boolean>;   // lease 7 min, attempts+1, backoff min(300s, 10s * 2^min(attempts,5)), 12 attempts or terminal code -> status review
-export async function drainEnsJobs(): Promise<void>;     // demo/test only: loop runEnsWorkerOnce until false (guard isDemo())
-export const TERMINAL_JOB_CODES = ["CHAIN_REVERT", "ENS_RECORD_MISMATCH", "ENS_TX_MISMATCH", "WRONG_RECIPIENT", "WRONG_PAYER", "UNDERPAID"];
+export async function enqueueEnsJob(
+  tx: Tx,
+  input: { kind: EnsJobKind; signer: EnsJobSigner; entityId: string; payload?: unknown },
+): Promise<string>;
+export async function runEnsWorkerOnce(owner?: string): Promise<boolean>; // lease 7 min, attempts+1, backoff min(300s, 10s * 2^min(attempts,5)), 12 attempts or terminal code -> status review
+export async function drainEnsJobs(): Promise<void>; // demo/test only: loop runEnsWorkerOnce until false (guard isDemo())
+export const TERMINAL_JOB_CODES = [
+  "CHAIN_REVERT",
+  "ENS_RECORD_MISMATCH",
+  "ENS_TX_MISMATCH",
+  "WRONG_RECIPIENT",
+  "WRONG_PAYER",
+  "UNDERPAID",
+];
 ```
 
 Handlers for `trip.*`, `record.set`, `table.write`, `split.verify` are registered by Tasks 7, 8, 9 (they import `registerEnsJobHandler`; `jobs.ts` never imports them, avoiding cycles).
@@ -409,19 +562,51 @@ Handlers for `trip.*`, `record.set`, `table.write`, `split.verify` are registere
 **Interfaces (produces):**
 
 ```ts
-export interface RpContextDTO { rp_id: string; nonce: string; created_at: number; expires_at: number; signature: string; app_id: string; action: string; environment: "production" | "staging" | "sandbox" | "simulated" }
-export interface VerifiedProof { nullifier: string /* decimal */; signalHash: string | null; issuerSchemaId: string | null; expiresAtMin: Date | null; environment: string }
-export interface AgentIdentity { issuer: string; sub: string; nonce: string; authTime: Date; acr?: string }
+export interface RpContextDTO {
+  rp_id: string;
+  nonce: string;
+  created_at: number;
+  expires_at: number;
+  signature: string;
+  app_id: string;
+  action: string;
+  environment: "production" | "staging" | "sandbox" | "simulated";
+}
+export interface VerifiedProof {
+  nullifier: string /* decimal */;
+  signalHash: string | null;
+  issuerSchemaId: string | null;
+  expiresAtMin: Date | null;
+  environment: string;
+}
+export interface AgentIdentity {
+  issuer: string;
+  sub: string;
+  nonce: string;
+  authTime: Date;
+  acr?: string;
+}
 export interface WorldAdapter {
   readonly kind: "simulated" | "live";
   rpContext(action: string): Promise<RpContextDTO>;
-  verifyProof(input: { payload: unknown; action: string; signal: string }): Promise<VerifiedProof>;  // throws WORLD_VERIFY_FAILED 422 | WORLD_CREDENTIAL_UNAVAILABLE 422 | WORLD_SIGNAL_MISMATCH 422
-  agentAuthorizeUrl(input: { approvalId: string; nonce: string; codeChallenge: string; fresh: boolean }): Promise<string>;
-  agentExchange(input: { code: string; codeVerifier: string }): Promise<AgentIdentity>;  // throws WORLD_AGENT_TOKEN 401
+  verifyProof(input: { payload: unknown; action: string; signal: string }): Promise<VerifiedProof>; // throws WORLD_VERIFY_FAILED 422 | WORLD_CREDENTIAL_UNAVAILABLE 422 | WORLD_SIGNAL_MISMATCH 422
+  agentAuthorizeUrl(input: {
+    approvalId: string;
+    nonce: string;
+    codeChallenge: string;
+    fresh: boolean;
+  }): Promise<string>;
+  agentExchange(input: { code: string; codeVerifier: string }): Promise<AgentIdentity>; // throws WORLD_AGENT_TOKEN 401
 }
-export function world(): WorldAdapter;   // simulated when isDemo(); live otherwise (throws WORLD_UNAVAILABLE 503 when WORLD_APP_ID/RP_ID/RP_SIGNING_KEY missing)
-export function nullifierToDecimal(hex: string): string;   // BigInt(hex).toString(); throws WORLD_VERIFY_FAILED on bad input
-export const simulatedProofSchema = z.object({ simulated: z.literal(true), human: z.string().min(1).max(80), unavailable: z.boolean().optional() }).strict();
+export function world(): WorldAdapter; // simulated when isDemo(); live otherwise (throws WORLD_UNAVAILABLE 503 when WORLD_APP_ID/RP_ID/RP_SIGNING_KEY missing)
+export function nullifierToDecimal(hex: string): string; // BigInt(hex).toString(); throws WORLD_VERIFY_FAILED on bad input
+export const simulatedProofSchema = z
+  .object({
+    simulated: z.literal(true),
+    human: z.string().min(1).max(80),
+    unavailable: z.boolean().optional(),
+  })
+  .strict();
 ```
 
 Simulated: `verifyProof` parses `simulatedProofSchema` (else `WORLD_VERIFY_FAILED`), throws `WORLD_CREDENTIAL_UNAVAILABLE` when `unavailable`, returns `nullifier = BigInt(keccak256(toHex("sim:" + human))).toString()`, `signalHash = keccak256(toHex(signal))`, `environment: "simulated"`. `agentAuthorizeUrl` returns `simulated://approval/${approvalId}`. `agentExchange` throws `WORLD_AGENT_TOKEN`. `rpContext` returns placeholders with `environment: "simulated"`.
@@ -440,14 +625,26 @@ Live: `rpContext` = `signRequest({ signingKeyHex: WORLD_RP_SIGNING_KEY, action }
 **Interfaces (produces):**
 
 ```ts
-export type ApprovalExecutor = (tx: Tx, approval: ApprovalRow, user: UserRow) => Promise<string | null>; // returns resultId
+export type ApprovalExecutor = (
+  tx: Tx,
+  approval: ApprovalRow,
+  user: UserRow,
+) => Promise<string | null>; // returns resultId
 export function registerApprovalExecutor(action: ApprovalAction, executor: ApprovalExecutor): void;
-export async function requestApproval(user: UserRow, input: { action: ApprovalAction; payload: unknown; summary: string }): Promise<ApprovalDTO>;
+export async function requestApproval(
+  user: UserRow,
+  input: { action: ApprovalAction; payload: unknown; summary: string },
+): Promise<ApprovalDTO>;
 // agent.link: 10 min expiry, no linked-sub requirement. Others: 2 min expiry, require user.worldAgentSub (else AGENT_NOT_LINKED 409).
-export async function approvalStatus(user: UserRow, id: string): Promise<ApprovalDTO>;   // computes expired lazily and persists it
-export async function finishApproval(input: { approvalId: string; code?: string; error?: string; identity?: AgentIdentity }): Promise<ApprovalDTO>;
+export async function approvalStatus(user: UserRow, id: string): Promise<ApprovalDTO>; // computes expired lazily and persists it
+export async function finishApproval(input: {
+  approvalId: string;
+  code?: string;
+  error?: string;
+  identity?: AgentIdentity;
+}): Promise<ApprovalDTO>;
 export function approvalDTO(row: ApprovalRow, url?: string | null): ApprovalDTO;
-export function pkce(): { verifier: string; challenge: string };  // 43-char base64url verifier, S256 challenge
+export function pkce(): { verifier: string; challenge: string }; // 43-char base64url verifier, S256 challenge
 ```
 
 `finishApproval` rules (in order): row must exist (404); if `status` is `consumed` or `approved` -> audit `approval.replay`, throw `APPROVAL_CONSUMED` 409; if `denied`/`expired` -> throw `APPROVAL_CLOSED` 409; if `expiresAt <= now` -> set `expired`, throw `APPROVAL_EXPIRED` 409; if `error` -> set `denied`, return DTO; identity = `input.identity ?? world().agentExchange({ code, codeVerifier })`; `identity.nonce !== row.nonce` -> `APPROVAL_NONCE` 401; if `action === "agent.link"` -> set `users.worldAgentIssuer/Sub`; else require `identity.sub === user.worldAgentSub` (`APPROVAL_SUBJECT` 403) and `identity.authTime >= row.createdAt - 60s` (`APPROVAL_STALE` 401); then one `applyWrite(user.id, "approval." + action, row.id, tx => { update approved/worldSub/authTime; resultId = await executor(tx, row, user); update consumed, consumedAt, resultId })`. Executors re-validate business state; if an executor throws, the row is left `approved` but unconsumed and the error propagates (the audit trail shows it); a retry is a new approval.
@@ -467,21 +664,65 @@ The URL in `ApprovalDTO.url` is regenerated on `requestApproval` only; `approval
 
 ```ts
 // trips.ts
-export const activateSchema = z.object({ city: z.string().regex(/^[a-z-]+$/).default("tokyo"), label: labelSchema.optional(), arrivesAt: z.string().datetime(), departsAt: z.string().datetime(), proof: z.unknown() }).strict();
-export async function activateTrip(user: UserRow, body: z.infer<typeof activateSchema>): Promise<TripDTO>;
-export async function extendTrip(user: UserRow, body: { city?: string; departsAt: string }): Promise<TripDTO>;
+export const activateSchema = z
+  .object({
+    city: z
+      .string()
+      .regex(/^[a-z-]+$/)
+      .default("tokyo"),
+    label: labelSchema.optional(),
+    arrivesAt: z.string().datetime(),
+    departsAt: z.string().datetime(),
+    proof: z.unknown(),
+  })
+  .strict();
+export async function activateTrip(
+  user: UserRow,
+  body: z.infer<typeof activateSchema>,
+): Promise<TripDTO>;
+export async function extendTrip(
+  user: UserRow,
+  body: { city?: string; departsAt: string },
+): Promise<TripDTO>;
 export async function endTrip(user: UserRow, city?: string): Promise<TripDTO>;
 export async function myTrip(user: UserRow, city?: string): Promise<TripDTO | null>;
-export async function activeTripFor(userId: string, city: string, db?: Tx | Database): Promise<TripRow | null>;  // status active only
-export async function tripByName(name: string): Promise<{ name: string; city: string; active: boolean; departsAt: string; verifiedHuman: boolean; now: NowRecord | null }>;
-export async function tripBadges(userIds: string[], city?: string): Promise<Map<string, { tripName: string; verifiedHuman: boolean; now: NowRecord | null }>>;
-export async function expireTrips(now?: Date): Promise<number>;  // active & departsAt <= now -> expired + trip.expire job
-export async function setPayRecord(user: UserRow, body: { city?: string; enabled: boolean }): Promise<TripDTO>; // record.set addr coinType 2147500 (0x80000000 + 16661) via operator, payAddress snapshot
+export async function activeTripFor(
+  userId: string,
+  city: string,
+  db?: Tx | Database,
+): Promise<TripRow | null>; // status active only
+export async function tripByName(
+  name: string,
+): Promise<{
+  name: string;
+  city: string;
+  active: boolean;
+  departsAt: string;
+  verifiedHuman: boolean;
+  now: NowRecord | null;
+}>;
+export async function tripBadges(
+  userIds: string[],
+  city?: string,
+): Promise<Map<string, { tripName: string; verifiedHuman: boolean; now: NowRecord | null }>>;
+export async function expireTrips(now?: Date): Promise<number>; // active & departsAt <= now -> expired + trip.expire job
+export async function setPayRecord(
+  user: UserRow,
+  body: { city?: string; enabled: boolean },
+): Promise<TripDTO>; // record.set addr coinType 2147500 (0x80000000 + 16661) via operator, payAddress snapshot
 export function tripDTO(row: TripRow, user: UserRow | { verifiedHumanAt: Date | null }): TripDTO;
 // dto.ts: explorer links, nowRecord parsing (JSON text -> NowRecord | null)
 // router.ts (ens-world)
 export function isPublicPath(path: string, method: string): boolean; // GET trips/<name> where name contains ".", GET world/agent/callback
-export async function handle(ctx: { path: string; method: string; request: Request; url: URL; actor: UserRow | null; correlationId: string; ok: (data: unknown, status?: number, extra?: Record<string, string>) => Response }): Promise<Response | null>;
+export async function handle(ctx: {
+  path: string;
+  method: string;
+  request: Request;
+  url: URL;
+  actor: UserRow | null;
+  correlationId: string;
+  ok: (data: unknown, status?: number, extra?: Record<string, string>) => Response;
+}): Promise<Response | null>;
 ```
 
 `activateTrip` order: `requireMember`; `publishedCity`; dates: `arrivesAt < departsAt`, `departsAt > now + 1h`, `departsAt <= now + 90d` (`TRIP_DATES` 422); `world().verifyProof({ payload: body.proof, action: WORLD_ACTION_TRIP, signal: body.city })`; label = `body.label ?? suggestLabel(user.name)`; `applyWrite(user.id, "trip.activate", city, tx => { lock user row; SELECT pg_advisory_xact_lock(hashtext(city || ':' || nullifier)); if active/pending trip for user in city -> TRIP_EXISTS 409; if any trip in (pending_chain, active) in city joined to human_proofs with same nullifier -> HUMAN_ALREADY_PRESENT 409; insert human_proofs; resolve label collisions by appending -2, -3...; insert trip pending_chain with ensName/labelhash/registry/resolver from chain().addresses; set users.verifiedHumanAt if null; enqueueEnsJob trip.register { tripId } signer operator })`; if `isDemo()` -> `await drainEnsJobs()`; return `tripDTO`.
@@ -504,18 +745,42 @@ Main router patch (exact): (1) add to the `config` response: `world: { enabled, 
 **Interfaces (produces):**
 
 ```ts
-export const createGatheringSchema = z.object({ city: z.string().default("tokyo"), kind: z.enum(["coffee","breakfast","lunch","dinner","drinks"]), placeId: z.string().uuid().optional(), area: z.string().trim().min(1).max(60), startsAt: z.string().datetime(), seats: z.number().int().min(2).max(8) }).strict();
+export const createGatheringSchema = z
+  .object({
+    city: z.string().default("tokyo"),
+    kind: z.enum(["coffee", "breakfast", "lunch", "dinner", "drinks"]),
+    placeId: z.string().uuid().optional(),
+    area: z.string().trim().min(1).max(60),
+    startsAt: z.string().datetime(),
+    seats: z.number().int().min(2).max(8),
+  })
+  .strict();
 export async function createGathering(host: UserRow, body): Promise<GatheringDetail>;
-export async function requestSeat(user: UserRow, gatheringId: string, body: { plusOnes: number }): Promise<ApprovalDTO>;   // approval table.request
-export async function approveSeat(host: UserRow, gatheringId: string, body: { attendeeId: string }): Promise<ApprovalDTO>; // approval table.approve
-export async function declineSeat(host: UserRow, gatheringId: string, body: { attendeeId: string }): Promise<GatheringDetail>;
+export async function requestSeat(
+  user: UserRow,
+  gatheringId: string,
+  body: { plusOnes: number },
+): Promise<ApprovalDTO>; // approval table.request
+export async function approveSeat(
+  host: UserRow,
+  gatheringId: string,
+  body: { attendeeId: string },
+): Promise<ApprovalDTO>; // approval table.approve
+export async function declineSeat(
+  host: UserRow,
+  gatheringId: string,
+  body: { attendeeId: string },
+): Promise<GatheringDetail>;
 export async function leaveGathering(user: UserRow, gatheringId: string): Promise<GatheringDetail>;
 export async function cancelGathering(host: UserRow, gatheringId: string): Promise<GatheringDetail>;
 export async function closeGathering(host: UserRow, gatheringId: string): Promise<GatheringDetail>;
-export async function listGatherings(user: UserRow | null, city: string): Promise<GatheringSummary[]>;  // status open|full|closed, startsAt > now - 6h, limit 60
+export async function listGatherings(
+  user: UserRow | null,
+  city: string,
+): Promise<GatheringSummary[]>; // status open|full|closed, startsAt > now - 6h, limit 60
 export async function gatheringDetail(user: UserRow | null, id: string): Promise<GatheringDetail>;
-export async function tableRecord(gatheringId: string, db?): Promise<string>;   // the JSON string written on chain (spec 6.3; attendees = approved trip names incl. host; guests = sum plusOnes; expiresAt = startsAt + 6h; place = place slug or null)
-export function seatsTaken(attendees: AttendeeRow[]): number;  // approved rows: 1 + plusOnes each
+export async function tableRecord(gatheringId: string, db?): Promise<string>; // the JSON string written on chain (spec 6.3; attendees = approved trip names incl. host; guests = sum plusOnes; expiresAt = startsAt + 6h; place = place slug or null)
+export function seatsTaken(attendees: AttendeeRow[]): number; // approved rows: 1 + plusOnes each
 ```
 
 Rules: host needs `activeTripFor(host.id, city)` (`TRIP_REQUIRED` 403) and `verifiedHumanAt` (`HUMAN_REQUIRED` 403); `startsAt` within `[now - 1h, now + 14d]`; place, if given, must be published in the city; label = `tableLabel(kind, startsAt)` with a 4-hex suffix on collision; insert gathering + host attendee (`approved`, `plusOnes 0`); enqueue `table.write` (concierge); demo drains inline. `requestSeat`: requester has an active trip in the city and is a verified human, is not the host, is not blocked either way (`blockedIds`), has no attendee row (or a `left` one: then update), seats available for `1 + plusOnes`; then `requestApproval(user, { action: "table.request", payload: { gatheringId, plusOnes }, summary })`. Executor `table.request` re-checks seats and blocks, inserts/updates the attendee row `requested` with `approvalId`, returns attendee id. `approveSeat`: host only, attendee `requested`; approval `table.approve` payload `{ gatheringId, attendeeId }`; executor sets `approved`, sets gathering `full` when `seatsTaken >= seats`, enqueues `table.write`, returns attendee id. `declineSeat`, `leaveGathering`, `cancelGathering`, `closeGathering` are direct writes; each that changes attendance or status enqueues `table.write`. `table.write` handler: `chain().setRecords("concierge", ensName, [{ text friendship.table, value: tableRecord }])` -> receipt -> `readText` compare -> `chainRecordTx`, `chainVerifiedAt`; for `cancelled` and for `closed` older than 24h, the value written is `""`.
@@ -534,12 +799,25 @@ Routes: `GET gatherings?city=`, `POST gatherings`, `GET gatherings/<id>`, `POST 
 **Interfaces (produces):**
 
 ```ts
-export function computeShares(input: { totalCents: number; members: { id: string; plusOnes: number }[]; hostId: string }): { unitCents: number; hostCents: number; shares: Map<string, number> };
+export function computeShares(input: {
+  totalCents: number;
+  members: { id: string; plusOnes: number }[];
+  hostId: string;
+}): { unitCents: number; hostCents: number; shares: Map<string, number> };
 // people = members.length + sum(plusOnes); unit = ceil(total / people); non-host member share = unit; host = total - sum(non-host shares)
-export const USDC_DECIMALS = 6; export const usdcBaseUnits = (cents: number) => BigInt(cents) * 10_000n;
-export async function startSplit(host: UserRow, gatheringId: string, body: { totalCents: number }): Promise<GatheringDetail>; // gathering status in open|full|closed, splitStatus none; snapshots host pay address = chain().readAddr(hostTripName) (fallback readAddr coinType 60), sets attendee shareCents + payAddress, splitStatus pending
-export async function reportPayment(user: UserRow, gatheringId: string, body: { txHash: string }): Promise<GatheringDetail>;   // hint only: sets paidTx, enqueues split.verify
-export async function simulatePayment(user: UserRow, gatheringId: string): Promise<GatheringDetail>;  // demo only: chain().simulateTransfer from user's first wallet to payAddress of usdcBaseUnits(share) then reportPayment
+export const USDC_DECIMALS = 6;
+export const usdcBaseUnits = (cents: number) => BigInt(cents) * 10_000n;
+export async function startSplit(
+  host: UserRow,
+  gatheringId: string,
+  body: { totalCents: number },
+): Promise<GatheringDetail>; // gathering status in open|full|closed, splitStatus none; snapshots host pay address = chain().readAddr(hostTripName) (fallback readAddr coinType 60), sets attendee shareCents + payAddress, splitStatus pending
+export async function reportPayment(
+  user: UserRow,
+  gatheringId: string,
+  body: { txHash: string },
+): Promise<GatheringDetail>; // hint only: sets paidTx, enqueues split.verify
+export async function simulatePayment(user: UserRow, gatheringId: string): Promise<GatheringDetail>; // demo only: chain().simulateTransfer from user's first wallet to payAddress of usdcBaseUnits(share) then reportPayment
 ```
 
 `split.verify` handler: `chain().erc20Transfer(paidTx)`; null -> `PENDING` retryable; `to !== payAddress` -> `WRONG_RECIPIENT`; `from` not in the attendee's `walletLinks` -> `WRONG_PAYER`; `amount < usdcBaseUnits(shareCents)` -> `UNDERPAID`; `!success` -> `PENDING`; `!finalized` -> `PENDING`; else `paidVerifiedAt = now`, and when every non-host approved attendee is verified -> gathering `splitStatus = settled`.
@@ -594,11 +872,27 @@ Routes: `POST concierge/chat { city, message }`, `POST concierge/now { city, kin
 **Interfaces (produces):**
 
 ```tsx
-export function HumanCheck(props: { city: string; label: string; arrivesAt: string; departsAt: string; onActivated: (trip: TripDTO) => void; onCancel: () => void }): JSX.Element;
+export function HumanCheck(props: {
+  city: string;
+  label: string;
+  arrivesAt: string;
+  departsAt: string;
+  onActivated: (trip: TripDTO) => void;
+  onCancel: () => void;
+}): JSX.Element;
 // demo: SimulatedHumanPanel with "Human identity" input (default "human-<first 6 of user id>"), buttons "Verify as this human", "Credential unavailable", "Cancel"; production: fetch GET world/rp-context?action=<config.world.action>, then render IDKitRequestWidget (dynamic import ssr:false) with preset proofOfHuman({ signal: city }) and a second "Use passport instead" button switching preset to passport({ signal: city }); handleVerify posts POST world/verify { city, label, arrivesAt, departsAt, proof: result }; onError shows the code with plain copy for cancel ("You closed World ID. No trip was created.").
-export function ApprovalModal(props: { approval: ApprovalDTO | null; onClose: () => void; onResolved: (approval: ApprovalDTO) => void }): JSX.Element;
+export function ApprovalModal(props: {
+  approval: ApprovalDTO | null;
+  onClose: () => void;
+  onResolved: (approval: ApprovalDTO) => void;
+}): JSX.Element;
 // polls GET approvals/<id> every 2s while pending; demo (approval.simulated): "Simulated World ID app" panel with Approve / Deny buttons posting world/agent/simulate { approvalId, decision, human }; production: "Open World ID" link (target _blank) to approval.url; terminal copy: approved "Approved. The concierge did it.", denied "You declined. Nothing was written.", expired "This approval expired after two minutes. Nothing was written.".
-export function useApprovalFlow(): { approval: ApprovalDTO | null; start: (path: string, body?: unknown) => Promise<void>; close: () => void; onResolved: (fn: (a: ApprovalDTO) => void) => void };
+export function useApprovalFlow(): {
+  approval: ApprovalDTO | null;
+  start: (path: string, body?: unknown) => Promise<void>;
+  close: () => void;
+  onResolved: (fn: (a: ApprovalDTO) => void) => void;
+};
 export function TripCard(): JSX.Element;
 // states: no trip -> form (label prefilled from name, arrives/departs date inputs, "Activate with World ID" -> HumanCheck); pending_chain -> pending copy + Etherscan link; active -> name (mono), expiry, "Verified human" tag, links (name explorer, tx), Extend (date input) / End; plus "Pay record" toggle (POST trips/pay-record) and "Let the concierge act for you" (POST world/agent/link -> ApprovalModal) showing "Linked" when me.user.worldAgentLinked; concierge panel text: concierge name + the two permitted keys.
 ```
