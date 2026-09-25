@@ -20,7 +20,7 @@ Open **http://127.0.0.1:3000**. Use the account selector at the top of app scree
 | Alex    | Free preview → membership → simulated purchase → full catalog                                     |
 | Maya    | Paid discovery, saved places, introductions, Right now, activate a trip with (simulated) World ID |
 | Kenji   | Arrives with a trip and hosts tonight's dinner; approves seats with his own step-up               |
-| Ari     | Arrives with a trip; the one who declines the World ID step-up                                    |
+| Ari     | Tries Maya's World ID first (rejected), activates as herself, then declines a step-up             |
 | Host    | Content editor, member moderation, reports, invoices                                              |
 
 Use Maya to send Alex a request, switch to Alex, accept it, and see the sample contact appear. Switch back to Maya to see the reciprocal result. All people, venues and events in this demo are fictional and visibly labeled. The database resets when the process restarts. No funds move, no email is sent, and no real ENS identity is fabricated.
