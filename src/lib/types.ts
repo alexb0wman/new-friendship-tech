@@ -1,5 +1,26 @@
 export type PlanKey = "all_access_30d";
 export type Category = "Eat" | "Coffee" | "Drink" | "Work" | "Culture" | "Outdoors" | "Meet";
+export type ContentSection = "travel" | "art" | "music" | "tech";
+export type ContentKind = "story" | "playlist" | "opportunity" | "company" | "perk";
+export type ContentStatus = "draft" | "published" | "archived";
+export interface ContentItem {
+  id: string;
+  slug: string;
+  kind: ContentKind;
+  section: ContentSection;
+  title: string;
+  summary: string;
+  body: string;
+  sourceUrl: string;
+  city: string | null;
+  tags: string[];
+  status: ContentStatus;
+  featuredRank: number | null;
+  fixture: boolean;
+  publishedAt: string;
+  updatedAt: string;
+  saved?: boolean;
+}
 export type RequestStatus = "pending" | "accepted" | "declined" | "cancelled" | "expired";
 export type InvoiceStatus =
   | "quoted"

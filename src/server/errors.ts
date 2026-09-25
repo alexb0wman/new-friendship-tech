@@ -27,6 +27,11 @@ export function errorResponse(error: unknown, correlationId: string) {
         event: "request_error",
         correlationId,
         kind: error instanceof Error ? error.name : "unknown",
+        message: error instanceof Error ? error.message : String(error),
+        detail:
+          error && typeof error === "object" && "cause" in error
+            ? String((error as { cause?: unknown }).cause)
+            : undefined,
       }),
     );
   return Response.json(

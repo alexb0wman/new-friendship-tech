@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useResource, useSession } from "../session";
 import { PageTitle, Loading, AccessState, Tag, Arrow, Modal, ErrorBox } from "../ui";
-import type { Invoice } from "@/lib/types";
+import type { ContentItem, Invoice } from "@/lib/types";
 interface AdminData {
   places: {
     id: string;
@@ -14,10 +14,24 @@ interface AdminData {
     fixture: boolean;
   }[];
   events: { id: string; title: string; fixture: boolean }[];
+  content: ContentItem[];
   reports: { id: string; reason: string; status: string; targetId: string }[];
   users: { id: string; name: string; suspended: boolean; fixture: boolean }[];
   invoices: Invoice[];
 }
+const initialContent = {
+  slug: "",
+  kind: "story",
+  section: "travel",
+  title: "",
+  summary: "",
+  body: "",
+  sourceUrl: "https://",
+  city: null,
+  tags: [],
+  status: "draft",
+  featuredRank: null,
+};
 const initialPlace = {
   name: "",
   slug: "",
@@ -40,7 +54,9 @@ export function AdminView() {
     [open, setOpen] = useState(false),
     [json, setJson] = useState(JSON.stringify(initialPlace, null, 2)),
     [formError, setFormError] = useState<Error | null>(null),
-    [tab, setTab] = useState("Places");
+    [tab, setTab] = useState("Places"),
+    [mode, setMode] = useState<"place" | "content">("place"),
+    [contentJson, setContentJson] = useState(JSON.stringify(initialContent, null, 2));
   async function act(path: string, body: unknown) {
     try {
       await api(path, { method: "POST", body: JSON.stringify(body) });
@@ -54,7 +70,9 @@ export function AdminView() {
     event.preventDefault();
     setFormError(null);
     try {
-      await api("admin/places", { method: "POST", body: JSON.stringify(JSON.parse(json)) });
+      if (mode === "content")
+        await api("admin/content", { method: "POST", body: contentJson });
+      else await api("admin/places", { method: "POST", body: json });
       setOpen(false);
       await reload();
     } catch (error) {
@@ -71,12 +89,18 @@ export function AdminView() {
           <button
             className="button lime"
             onClick={() => {
-              setJson(JSON.stringify(initialPlace, null, 2));
+              if (tab === "Content") {
+                setContentJson(JSON.stringify(initialContent, null, 2));
+                setMode("content");
+              } else {
+                setJson(JSON.stringify(initialPlace, null, 2));
+                setMode("place");
+              }
               setFormError(null);
               setOpen(true);
             }}
           >
-            Add a place <Arrow />
+            {tab === "Content" ? "Add an entry" : "Add a place"} <Arrow />
           </button>
         }
       />
@@ -93,6 +117,10 @@ export function AdminView() {
                 <span>Places</span>
               </div>
               <div>
+                <strong>{data.content.length}</strong>
+                <span>Entries</span>
+              </div>
+              <div>
                 <strong>{data.users.length}</strong>
                 <span>Accounts</span>
               </div>
@@ -102,7 +130,7 @@ export function AdminView() {
               </div>
             </div>
             <div className="filter-chips">
-              {["Places", "Members", "Reports", "Invoices"].map((item) => (
+              {["Places", "Content", "Members", "Reports", "Invoices"].map((item) => (
                 <button
                   key={item}
                   className={"chip" + (tab === item ? " selected" : "")}
@@ -160,6 +188,64 @@ export function AdminView() {
                       </button>
                     </div>
                   </div>
+                ))}
+              {tab === "Content" &&
+                (data.content.length ? (
+                  data.content.map((item) => (
+                    <div className="admin-row" key={item.id}>
+                      <div>
+                        <strong>{item.title || item.slug}</strong>
+                        <p className="muted small">
+                          {item.section} / {item.kind}
+                          {item.city ? " / " + item.city : ""}
+                        </p>
+                      </div>
+                      <div className="button-row">
+                        <Tag lime={item.status === "published"}>{item.status}</Tag>
+                        <button
+                          className="button small ghost"
+                          onClick={() => {
+                            const keys = [
+                              "id",
+                              "slug",
+                              "kind",
+                              "section",
+                              "title",
+                              "summary",
+                              "body",
+                              "sourceUrl",
+                              "city",
+                              "tags",
+                              "status",
+                              "featuredRank",
+                            ];
+                            setContentJson(
+                              JSON.stringify(
+                                Object.fromEntries(
+                                  Object.entries(item).filter(([key]) => keys.includes(key)),
+                                ),
+                                null,
+                                2,
+                              ),
+                            );
+                            setMode("content");
+                            setFormError(null);
+                            setOpen(true);
+                          }}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="button small ghost"
+                          onClick={() => void act("admin/content/delete", { id: item.id })}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="note">No entries yet. Add stories, playlists, and opportunities.</p>
                 ))}
               {tab === "Members" &&
                 data.users.map((user) => (
@@ -227,24 +313,33 @@ export function AdminView() {
           </>
         )
       )}
-      <Modal open={open} title="Edit a reviewed place" onClose={() => setOpen(false)}>
+      <Modal
+        open={open}
+        title={mode === "content" ? "Edit a content entry" : "Edit a reviewed place"}
+        onClose={() => setOpen(false)}
+      >
         <p className="muted small">
-          Alpha content editor. Use the import schema. Publication requires a real source and review
-          date.
+          {mode === "content"
+            ? "Section is travel, art, music, or tech. Kind is story, playlist, opportunity, company, or perk. Status is draft, published, or archived."
+            : "Alpha content editor. Use the import schema. Publication requires a real source and review date."}
         </p>
         <form onSubmit={add}>
           <label className="field">
-            Place record
+            {mode === "content" ? "Content record" : "Place record"}
             <textarea
               rows={16}
-              value={json}
-              onChange={(event) => setJson(event.target.value)}
+              value={mode === "content" ? contentJson : json}
+              onChange={(event) =>
+                mode === "content"
+                  ? setContentJson(event.target.value)
+                  : setJson(event.target.value)
+              }
               spellCheck={false}
             />
           </label>
           <ErrorBox error={formError} />
           <button className="button lime full">
-            Save place <Arrow />
+            {mode === "content" ? "Save entry" : "Save place"} <Arrow />
           </button>
         </form>
       </Modal>

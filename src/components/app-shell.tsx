@@ -4,14 +4,13 @@ import { usePathname } from "next/navigation";
 import {
   Compass,
   Users,
-  Zap,
-  CalendarDays,
-  Bookmark,
   ArrowUpRight,
-  Bell,
   Settings,
   LogOut,
   ChevronDown,
+  Palette,
+  Music2,
+  Cpu,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { useResource, useSession } from "./session";
@@ -23,69 +22,61 @@ export function AppShell({ children }: { children: ReactNode }) {
     { me, config, login, logout, switchDemo, notice } = useSession();
   const [accountOpen, setAccountOpen] = useState(false),
     [cityOpen, setCityOpen] = useState(false),
-    [exploreOpen, setExploreOpen] = useState(false);
+    [openTopic, setOpenTopic] = useState<string | null>(null);
   const { data: cityData } = useResource<{ items: City[] }>("cities");
   const citySlug =
     cityData?.items.find((city) => pathname.startsWith("/" + city.slug))?.slug ?? "tokyo";
-  const primary = [
+  const topics = [
+    {
+      label: "Travel",
+      href: "/travel",
+      items: [
+        ["/" + citySlug, "Places", "The saved collection"],
+        ["/" + citySlug + "/events", "Events", "What is on"],
+        ["/" + citySlug + "/now", "Right now", "Temporary plans"],
+        ["/travel", "Guides", "City stories"],
+        ["/cities", "Cities", "Everywhere we cover"],
+      ],
+    },
+    {
+      label: "Art",
+      href: "/art",
+      items: [
+        ["/art", "Featured", "The latest"],
+        ["/art?kind=story", "Stories", "Exhibitions and creators"],
+        ["/art?kind=company", "Galleries", "Featured spaces"],
+      ],
+    },
+    {
+      label: "Music",
+      href: "/music",
+      items: [
+        ["/music", "Featured", "The latest"],
+        ["/music?kind=playlist", "Playlists", "Curated listens"],
+        ["/music?kind=story", "Stories", "Artists and shows"],
+      ],
+    },
+    {
+      label: "Tech",
+      href: "/tech",
+      items: [
+        ["/tech", "Featured", "The latest"],
+        ["/tech?kind=opportunity", "Opportunities", "Jobs and teams"],
+        ["/tech?kind=company", "Companies", "Featured teams"],
+        ["/network", "People", "The member directory"],
+      ],
+    },
+  ];
+  const plain = [
     { href: "/network", label: "Network" },
-    { href: "/intelligence", label: "Intelligence" },
-    { href: "/" + citySlug + "/events", label: "Events" },
-    { href: "/atlas", label: "Atlas" },
-    { href: "/introductions", label: "Intros" },
     { href: "/membership", label: "Membership" },
-    { href: "/" + citySlug + "/now", label: "Right now" },
-    { href: "/standings", label: "Standings" },
   ];
   const mobile = [
+    { href: "/" + citySlug, label: "Travel", icon: Compass },
+    { href: "/art", label: "Art", icon: Palette },
+    { href: "/music", label: "Music", icon: Music2 },
+    { href: "/tech", label: "Tech", icon: Cpu },
     { href: "/network", label: "Network", icon: Users },
-    { href: "/" + citySlug + "/events", label: "Events", icon: CalendarDays },
-    { href: "/" + citySlug + "/now", label: "Now", icon: Zap },
-    { href: "/atlas", label: "Atlas", icon: Compass },
-    { href: "/saved", label: "Saved", icon: Bookmark },
-  ];
-  const explore = [
-    {
-      label: "Network",
-      items: [
-        ["/network", "Network", "People and the graph"],
-        ["/atlas", "Relationship Atlas", "How everyone connects"],
-        ["/companies", "Companies", "Companies in the network"],
-        ["/capital", "Capital", "Investors and funds"],
-        ["/cities", "Cities", "Where the network gathers"],
-        ["/invite-tree", "Invite Tree", "Who invited whom"],
-      ],
-    },
-    {
-      label: "Events",
-      items: [
-        ["/" + citySlug + "/events", "Events", "What's on"],
-        ["/where-to-be", "Where to be", "The week"],
-      ],
-    },
-    {
-      label: "Intelligence",
-      items: [
-        ["/intelligence", "Intelligence", "The wire"],
-        ["/read", "Read", "Longer pieces"],
-      ],
-    },
-    {
-      label: "Membership",
-      items: [
-        ["/membership", "Membership", "All Access"],
-        ["/onboarding", "Join", "Create an account"],
-        ["/trust", "Trust", "What a label means"],
-        ["/policy", "Member policy", "Consent and reports"],
-      ],
-    },
-    {
-      label: "Operations",
-      items: [
-        ["/admin", "Admin Console", "Content and reports"],
-        ["/operations", "Operations", "Review queue"],
-      ],
-    },
   ];
   const active = (href: string) => pathname === href || pathname.startsWith(href + "/");
   return (
@@ -121,15 +112,35 @@ export function AppShell({ children }: { children: ReactNode }) {
           {cityData?.items.find((city) => city.slug === citySlug)?.name ?? "Tokyo"}
           <ChevronDown size={14} />
         </button>
-        <button
-          className="explore-button"
-          aria-expanded={exploreOpen}
-          onClick={() => setExploreOpen((open) => !open)}
-        >
-          Explore <ChevronDown size={14} />
-        </button>
         <nav className="desktop-nav" aria-label="Main navigation">
-          {primary.map((item) => (
+          {topics.map((topic) => (
+            <span key={topic.label} className="nav-topic">
+              <button
+                className={"topic-button" + (active(topic.href) ? " active" : "")}
+                aria-expanded={openTopic === topic.label}
+                aria-haspopup="true"
+                onClick={() => setOpenTopic(openTopic === topic.label ? null : topic.label)}
+              >
+                {topic.label} <ChevronDown size={13} />
+              </button>
+              {openTopic === topic.label && (
+                <div className="topic-menu" role="menu">
+                  {topic.items.map(([href, label, detail]) => (
+                    <Link
+                      key={label}
+                      href={href}
+                      role="menuitem"
+                      onClick={() => setOpenTopic(null)}
+                    >
+                      <strong>{label}</strong>
+                      <span>{detail}</span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </span>
+          ))}
+          {plain.map((item) => (
             <Link
               key={item.href}
               href={item.href}
@@ -170,20 +181,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           TOKYO ALPHA · <Link href="/privacy">Privacy</Link> · <Link href="/terms">Terms</Link>
         </span>
       </footer>
-      {exploreOpen && (
-        <div className="explore-menu" role="navigation" aria-label="Explore">
-          {explore.map((group) => (
-            <div key={group.label}>
-              <p className="eyebrow">{group.label}</p>
-              {group.items.map(([href, label, detail]) => (
-                <Link key={href} href={href} onClick={() => setExploreOpen(false)}>
-                  <strong>{label}</strong>
-                  <span>{detail}</span>
-                </Link>
-              ))}
-            </div>
-          ))}
-        </div>
+      {openTopic && (
+        <div
+          className="topic-backdrop"
+          role="presentation"
+          onClick={() => setOpenTopic(null)}
+        />
       )}
       <nav className="bottom-nav" aria-label="Mobile navigation">
         {mobile.map((item) => (

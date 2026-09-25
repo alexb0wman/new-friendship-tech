@@ -11,7 +11,14 @@ import {
   check,
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
-import type { Category, InvoiceStatus, RequestStatus } from "@/lib/types";
+import type {
+  Category,
+  ContentKind,
+  ContentSection,
+  ContentStatus,
+  InvoiceStatus,
+  RequestStatus,
+} from "@/lib/types";
 
 const time = (name: string) => timestamp(name, { withTimezone: true, mode: "date" });
 export const users = pgTable(
@@ -90,6 +97,28 @@ export const events = pgTable(
     check("events_time_order", sql.raw("ends_at > starts_at")),
   ],
 );
+export const contentItems = pgTable(
+  "content_items",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    slug: text("slug").notNull().unique(),
+    kind: text("kind").$type<ContentKind>().notNull(),
+    section: text("section").$type<ContentSection>().notNull(),
+    title: text("title").notNull(),
+    summary: text("summary").notNull(),
+    body: text("body").notNull(),
+    sourceUrl: text("source_url").notNull(),
+    city: text("city"),
+    tags: jsonb("tags").$type<string[]>().notNull().default([]),
+    status: text("status").$type<ContentStatus>().notNull().default("draft"),
+    featuredRank: integer("featured_rank"),
+    fixture: boolean("fixture").notNull().default(false),
+    publishedAt: time("published_at").notNull().defaultNow(),
+    createdAt: time("created_at").notNull().defaultNow(),
+    updatedAt: time("updated_at").notNull().defaultNow(),
+  },
+  (t) => [index("content_items_section_idx").on(t.section, t.status, t.kind)],
+);
 export const saves = pgTable(
   "saves",
   {
@@ -99,12 +128,17 @@ export const saves = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
     placeId: uuid("place_id").references(() => places.id, { onDelete: "cascade" }),
     eventId: uuid("event_id").references(() => events.id, { onDelete: "cascade" }),
+    contentId: uuid("content_id").references(() => contentItems.id, { onDelete: "cascade" }),
     createdAt: time("created_at").notNull().defaultNow(),
   },
   (t) => [
     uniqueIndex("saves_place_unique").on(t.userId, t.placeId),
     uniqueIndex("saves_event_unique").on(t.userId, t.eventId),
-    check("saves_one_target", sql.raw("(place_id IS NULL) <> (event_id IS NULL)")),
+    uniqueIndex("saves_content_unique").on(t.userId, t.contentId),
+    check(
+      "saves_one_target",
+      sql.raw("(place_id IS NULL)::int + (event_id IS NULL)::int + (content_id IS NULL)::int = 2"),
+    ),
   ],
 );
 export const privateContacts = pgTable("private_contacts", {

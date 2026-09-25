@@ -148,12 +148,32 @@ export async function listEvents(user: s.UserRow | null, city = "tokyo") {
   }));
 }
 export const saveSchema = z.object({
-  type: z.enum(["place", "event"]),
+  type: z.enum(["place", "event", "content"]),
   id: z.string().uuid(),
   saved: z.boolean(),
 });
 export async function setSave(userId: string, data: z.infer<typeof saveSchema>) {
   const db = await getDb();
+  if (data.type === "content") {
+    const [item] = await db
+      .select()
+      .from(s.contentItems)
+      .where(and(eq(s.contentItems.id, data.id), eq(s.contentItems.status, "published")))
+      .limit(1);
+    invariant(item, "NOT_FOUND", "Item not found.", 404);
+    await applyWrite(userId, data.saved ? "save.add" : "save.remove", data.id, async (tx) => {
+      if (!data.saved)
+        await tx
+          .delete(s.saves)
+          .where(and(eq(s.saves.userId, userId), eq(s.saves.contentId, data.id)));
+      else
+        await tx
+          .insert(s.saves)
+          .values({ userId, contentId: data.id })
+          .onConflictDoNothing();
+    });
+    return;
+  }
   const table = data.type === "place" ? s.places : s.events;
   const [target] = await db
     .select()
@@ -190,9 +210,10 @@ export async function savedItems(userId: string) {
   const rows = await db.select().from(s.saves).where(eq(s.saves.userId, userId)).limit(200);
   const placeIds = rows.map((row) => row.placeId).filter((id): id is string => !!id);
   const eventIds = rows.map((row) => row.eventId).filter((id): id is string => !!id);
+  const contentIds = rows.map((row) => row.contentId).filter((id): id is string => !!id);
   const cities = await listCities(),
     cityIds = cities.map((city) => city.slug);
-  if (!cityIds.length) return { places: [], events: [] };
+  if (!cityIds.length) return { places: [], events: [], content: [] };
   const paid = (await membership(userId)).active;
   const places = placeIds.length
     ? await db
@@ -230,5 +251,35 @@ export async function savedItems(userId: string) {
       endsAt: row.endsAt.toISOString(),
       saved: true,
     })),
+    content: contentIds.length
+      ? (
+          await db
+            .select()
+            .from(s.contentItems)
+            .where(
+              and(
+                inArray(s.contentItems.id, contentIds),
+                eq(s.contentItems.status, "published"),
+              ),
+            )
+        ).map((row) => ({
+          id: row.id,
+          slug: row.slug,
+          kind: row.kind,
+          section: row.section,
+          title: row.title,
+          summary: row.summary,
+          body: row.body,
+          sourceUrl: row.sourceUrl,
+          city: row.city,
+          tags: row.tags,
+          status: row.status,
+          featuredRank: row.featuredRank,
+          fixture: row.fixture,
+          publishedAt: row.publishedAt.toISOString(),
+          updatedAt: row.updatedAt.toISOString(),
+          saved: true,
+        }))
+      : [],
   };
 }

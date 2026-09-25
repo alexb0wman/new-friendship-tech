@@ -11,6 +11,7 @@ import { applyWrite } from "./db/write";
 import { DEMO_ACTORS } from "./db/seed";
 import { PLAN } from "@/lib/constants";
 import * as catalog from "./catalog";
+import * as editorial from "./editorial";
 import * as social from "./social";
 import * as admin from "./admin";
 import { contactSchema } from "./privacy";
@@ -73,7 +74,10 @@ export async function handleApi(request: Request): Promise<Response> {
     }
     const optional =
       method === "GET" &&
-      (["cities", "places", "events", "plans"].includes(path) || path.startsWith("places/"));
+      (["cities", "places", "events", "plans"].includes(path) ||
+        path.startsWith("places/") ||
+        path === "content" ||
+        path.startsWith("content/"));
     const actor = await actorFromRequest(request, !optional);
     await rateLimit(request, actor?.id);
     if (path === "cities" && method === "GET")
@@ -89,6 +93,10 @@ export async function handleApi(request: Request): Promise<Response> {
         { items: await catalog.listEvents(actor, url.searchParams.get("city") ?? "tokyo") },
         correlationId,
       );
+    if (path === "content" && method === "GET")
+      return ok(await editorial.listContent(actor, url.searchParams), correlationId);
+    if (path.startsWith("content/") && method === "GET")
+      return ok(await editorial.contentBySlug(actor, path.split("/")[1]), correlationId);
     invariant(actor, "UNAUTHENTICATED", "Sign in to continue.", 401);
     if (path === "me" && method === "GET") return ok(await social.me(actor), correlationId);
     if (path === "me/profile" && method === "PATCH") {
@@ -269,6 +277,18 @@ export async function handleApi(request: Request): Promise<Response> {
       admin.requireAdmin(actor);
       if (path === "admin" && method === "GET")
         return ok(await admin.adminOverview(actor), correlationId);
+      if (path === "admin/content" && method === "POST")
+        return ok(
+          await editorial.upsertContent(actor, editorial.contentInput.parse(await jsonBody(request))),
+          correlationId,
+        );
+      if (path === "admin/content/delete" && method === "POST") {
+        const data = z
+          .object({ id: uuid })
+          .strict()
+          .parse(await jsonBody(request));
+        return ok(await editorial.deleteContent(actor, data.id), correlationId);
+      }
       if (path === "admin/places" && method === "POST")
         return ok(
           await admin.upsertPlace(actor, admin.placeInput.parse(await jsonBody(request))),

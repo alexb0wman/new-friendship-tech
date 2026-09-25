@@ -6,6 +6,7 @@ import { NowView, EventsView } from "./views/now-events";
 import { MembershipView, CheckoutView } from "./views/membership";
 import { OnboardingView, SettingsView } from "./views/account";
 import { AdminView } from "./views/admin";
+import { ChannelView, TravelChannelView } from "./views/channel";
 import {
   AtlasView,
   CitiesView,
@@ -31,6 +32,10 @@ export function Platform({ path }: { path: string[] }) {
   else if (first === "settings") screen = <SettingsView />;
   else if (first === "onboarding") screen = <OnboardingView />;
   else if (first === "admin") screen = <AdminView />;
+  else if (first === "travel") screen = <TravelChannelView />;
+  else if (first === "art") screen = <ChannelView section="art" />;
+  else if (first === "music") screen = <ChannelView section="music" />;
+  else if (first === "tech") screen = <ChannelView section="tech" />;
   else if (first === "network") screen = <NetworkView />;
   else if (first === "atlas") screen = <AtlasView />;
   else if (first === "companies") screen = <DirectoryView kind="companies" />;
