@@ -1,3 +1,5 @@
+// Tests seed their own trips; skip the demo fixtures so simulated chain state starts empty.
+process.env.NFT_SKIP_ENS_SEED = "true";
 import { handleApi } from "@/server/router";
 import { demoSession } from "@/server/auth";
 

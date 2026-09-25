@@ -6,7 +6,6 @@ import { encodeFunctionData, erc20Abi, type Address, type EIP1193Provider, type 
 import { useResource, useSession } from "../session";
 import { Loading, AccessState, Avatar, Tag, Arrow, ErrorBox, Eyebrow, dateLabel } from "../ui";
 import { useApprovalFlow, approvalErrorCopy } from "../approval-modal";
-import { OgPayTrigger } from "../og-pay-trigger";
 import { SeatMeter } from "./tables";
 import type { GatheringDetail } from "@/lib/types";
 
@@ -336,9 +335,6 @@ function PaySection({
   const { api, notice } = useSession();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const [ogProvider, setOgProvider] = useState<Awaited<ReturnType<typeof getProvider>> | null>(
-    null,
-  );
   async function report(txHash: string) {
     await api("gatherings/" + tableId + "/split/paid", {
       method: "POST",
@@ -400,33 +396,11 @@ function PaySection({
       ) : mine.paidTx ? (
         <p className="muted small">Reported {mine.paidTx.slice(0, 12)}…, verifying on chain.</p>
       ) : ogPay && !demo ? (
-        ogProvider ? (
-          <OgPayTrigger
-            provider={ogProvider as unknown as Parameters<typeof OgPayTrigger>[0]["provider"]}
-            recipient={mine.payTo}
-            outputAmount={(mine.shareCents / 100).toFixed(2)}
-            onTransactionHint={(hint) => {
-              const candidate =
-                hint && typeof hint === "object"
-                  ? ((hint as { txHash?: unknown; transactionHash?: unknown }).txHash ??
-                    (hint as { transactionHash?: unknown }).transactionHash)
-                  : undefined;
-              if (typeof candidate === "string" && /^0x[0-9a-fA-F]{64}$/.test(candidate))
-                void report(candidate);
-              else
-                notice("0G Pay returned no transaction hash. Paste it from your wallet history.");
-            }}
-            onFailure={() => setError(new Error("0G Pay did not complete."))}
-          />
-        ) : (
-          <button
-            className="button lime"
-            disabled={busy}
-            onClick={() => void getProvider().then(setOgProvider)}
-          >
-            Pay with 0G Pay <Arrow />
-          </button>
-        )
+        <div className="note">
+          SPLIT_OGPAY_ENABLED is on, but 0G Pay is not mounted in this build: the SDK needs the
+          ethers package, which this repository does not ship. Pay with the USDC transfer below or
+          mount OgPayTrigger here after adding ethers (docs/ENS-WORLD-DESIGN.md, section 2.9).
+        </div>
       ) : (
         <button className="button lime" disabled={busy} onClick={() => void pay()}>
           {busy ? "Paying…" : demo ? "Pay (simulated USDC)" : "Pay in USDC on Sepolia"} <Arrow />

@@ -21,13 +21,23 @@ Implemented in `src/server/ens.ts`:
 
 Configure `ENS_ENABLED`, `ENS_SEPOLIA_RPC_URL`, and optionally `ENS_WRITE_ENABLED`. Configure the public RPC URL only if a public/browser-safe endpoint is intended. Use viem's current Sepolia chain contracts; do not paste an old universal resolver address into the integration. No private contact or member graph is written on-chain.
 
-**Not complete:** a controlled ENSv2 parent namespace; registrar/role provisioning; subname issuance; a tested user name; live contract transaction evidence; judge-specific eligibility confirmation. This code is not proof of a prize-eligible ENSv2 integration merely because an ENS call succeeds. Verify that the chosen name uses the intended ENSv2 deployment and that the demonstrated operation matches the current sponsor criteria.
+**Namespace and subnames (ENSv2 + World drop):** `src/server/ens-v2/` provisions and operates a parent namespace on the Sepolia beta. `scripts/ens-bootstrap.ts` deploys the app resolver and the parent and city registries through the Verifiable Factory, mounts them, registers the anchors, grants the concierge its two setter roles and writes the ENSIP-26 records. Trips are tokenised, non-transferable subnames in the city registry with the departure date as expiry; tables are data-only subnames under `tables.<city>` written by the concierge; every write is proven by receipt and re-read (`ens-v2/proof.ts`). `docs/ENS-WORLD-DESIGN.md` records the decisions. **Still required:** run the bootstrap with a funded operator wallet, run `npm run ens:smoke`, and fill `docs/EVIDENCE.md` with the resulting hashes. The demo and the test suite run on a simulated chain; nothing here has been executed against Sepolia yet.
 
 CCIP Read is disabled server-side. Off-chain gateway records fail with an explicit unsupported/error state. Supporting them later needs an SSRF-aware gateway strategy, timeouts and response validation, not a blanket server fetch.
 
 Record writes now create a server-owned, twenty-minute intent containing account, normalized name, source wallet, resolver, chain, exact calldata and description. Confirmation requires a successful receipt, matching sender/recipient/input, zero native value, the correct chain, unchanged resolver and an independent text-record re-read. A unique transaction hash cannot confirm multiple intents. Local proof tests cover altered transactions; actual ENSv2 RPC and wallet execution still need live verification.
 
 Official references: https://docs.ens.domains/ and the current event sponsor page.
+
+## World ID
+
+Two integrations, both behind `WorldAdapter` (`src/server/world/`), simulated in demo mode.
+
+IDKit (trip activation): the backend signs `rp_context` with `WORLD_RP_SIGNING_KEY`, the widget requests Proof of Human (passport as the alternative) with the city as signal, the backend forwards the result to `POST /api/v4/verify/{rp_id}`, checks the environment and the signal hash, and stores the nullifier as `NUMERIC(78,0)`. One human, one active trip per city. Configure `WORLD_APP_ID`, `WORLD_RP_ID`, `WORLD_RP_SIGNING_KEY`, `WORLD_ENVIRONMENT` (`staging` with the simulator).
+
+World ID for Agents (approvals): OIDC against `WORLD_AGENTS_ISSUER` with PKCE, `prompt=login` and `max_age=0` for a fresh step-up; the callback validates the RS256 ID token, nonce, subject and `auth_time` before the executor runs. Register the client at the sandbox portal with a public HTTPS redirect URI ending in `/api/world/agent/callback`; localhost is refused, so local development uses the simulated adapter. Debriefs: `docs/WORLD-DEBRIEF-IDKIT.md`, `docs/WORLD-DEBRIEF-AGENTS.md`.
+
+Official references: https://docs.world.org/world-id/idkit/integrate and https://sandbox.auth.world.org/docs
 
 ## 0G Pay — the critical remaining integration
 

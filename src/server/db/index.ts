@@ -33,6 +33,8 @@ async function initialize(): Promise<Database> {
       await seedDemo(db);
       const { seedDemoContent } = await import("../editorial");
       await seedDemoContent(db);
+      const { seedEnsWorldDemo } = await import("../ens-world/seed");
+      await seedEnsWorldDemo(db);
     } else if (process.env.NFT_EMBEDDED_DB === "true") {
       const { loadSavedCatalog } = await import("../catalog-import");
       await loadSavedCatalog(db);

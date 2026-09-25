@@ -20,6 +20,8 @@
     "preflight": "node --import tsx scripts/preflight.ts",
     "check": "npm run typecheck && npm test && npm run build",
     "admin:bootstrap": "node --import tsx scripts/bootstrap-admin.ts",
+    "ens:bootstrap": "node --import tsx scripts/ens-bootstrap.ts",
+    "ens:smoke": "node --import tsx scripts/ens-smoke.ts",
     "test:e2e": "playwright test",
     "smoke": "node scripts/http-smoke.mjs",
     "format": "prettier --write .",
