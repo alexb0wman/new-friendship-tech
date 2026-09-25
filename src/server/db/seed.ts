@@ -76,38 +76,32 @@ export async function seedDemo(db: Database) {
   ];
   const now = Date.now();
   for (const [i, member] of members.entries()) {
-    await db
-      .insert(s.users)
-      .values({
-        ...member,
-        authSubject: "demo:" + member.id,
-        city: "tokyo",
-        neighborhood: ["Shibuya", "Shibuya", "Nakameguro", "Harajuku", "Shinjuku", "Shibuya"][i],
-        visible: true,
-        onboarded: i !== 0,
-        admin: i === 5,
-        host: i === 5,
-        fixture: true,
-      });
+    await db.insert(s.users).values({
+      ...member,
+      authSubject: "demo:" + member.id,
+      city: "tokyo",
+      neighborhood: ["Shibuya", "Shibuya", "Nakameguro", "Harajuku", "Shinjuku", "Shibuya"][i],
+      visible: true,
+      onboarded: i !== 0,
+      admin: i === 5,
+      host: i === 5,
+      fixture: true,
+    });
     await db
       .insert(s.walletLinks)
       .values({ userId: member.id, address: "0x" + String(i + 1).padStart(40, "0") });
-    await db
-      .insert(s.privateContacts)
-      .values({
-        userId: member.id,
-        sealed: await sealContact(member.id, { type: "Telegram", value: "demo_member_" + (i + 1) }),
-        shareOnAcceptance: true,
-      });
+    await db.insert(s.privateContacts).values({
+      userId: member.id,
+      sealed: await sealContact(member.id, { type: "Telegram", value: "demo_member_" + (i + 1) }),
+      shareOnAcceptance: true,
+    });
     if (i > 0)
-      await db
-        .insert(s.entitlements)
-        .values({
-          userId: member.id,
-          source: "demo_complimentary",
-          startsAt: new Date(now - 3600000),
-          endsAt: new Date(now + 29 * 86400000),
-        });
+      await db.insert(s.entitlements).values({
+        userId: member.id,
+        source: "demo_complimentary",
+        startsAt: new Date(now - 3600000),
+        endsAt: new Date(now + 29 * 86400000),
+      });
   }
   const fixtures: [string, string, Category, string, string[]][] = [
     [
@@ -280,27 +274,25 @@ export async function seedDemo(db: Database) {
     ],
   ];
   for (const [i, [name, neighborhood, category, note, tags]] of fixtures.entries()) {
-    await db
-      .insert(s.places)
-      .values({
-        id: randomUUID(),
-        slug: "sample-" + name.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-"),
-        city: "tokyo",
-        name,
-        neighborhood,
-        category,
-        note: note + " Fictional demo venue; replace with a reviewed recommendation before launch.",
-        tags,
-        mapUrl:
-          "https://www.google.com/maps/search/?api=1&query=" +
-          encodeURIComponent(neighborhood + ", Tokyo"),
-        sourceUrl: "https://example.com/sample-content",
-        price: null,
-        preview: i < 6,
-        published: true,
-        fixture: true,
-        artwork: String((i % 6) + 1).padStart(2, "0"),
-      });
+    await db.insert(s.places).values({
+      id: randomUUID(),
+      slug: "sample-" + name.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-"),
+      city: "tokyo",
+      name,
+      neighborhood,
+      category,
+      note: note + " Fictional demo venue; replace with a reviewed recommendation before launch.",
+      tags,
+      mapUrl:
+        "https://www.google.com/maps/search/?api=1&query=" +
+        encodeURIComponent(neighborhood + ", Tokyo"),
+      sourceUrl: "https://example.com/sample-content",
+      price: null,
+      preview: i < 6,
+      published: true,
+      fixture: true,
+      artwork: String((i % 6) + 1).padStart(2, "0"),
+    });
   }
   await db.insert(s.nowPosts).values([
     {

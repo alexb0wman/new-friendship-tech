@@ -214,23 +214,19 @@ export async function reconcileInvoice(id: string) {
       .orderBy(desc(s.entitlements.endsAt))
       .limit(1);
     const period = nextPeriod(new Date(), latest?.endsAt);
-    await tx
-      .insert(s.settlements)
-      .values({
-        invoiceId: id,
-        settlementKey: verified.key,
-        chainId: evidence.chainId,
-        txHash: evidence.txHash,
-        evidenceHash: verified.hash,
-      });
-    await tx
-      .insert(s.entitlements)
-      .values({
-        userId: invoice.userId,
-        invoiceId: id,
-        source: invoice.provider === "demo" ? "demo_payment" : "payment",
-        ...period,
-      });
+    await tx.insert(s.settlements).values({
+      invoiceId: id,
+      settlementKey: verified.key,
+      chainId: evidence.chainId,
+      txHash: evidence.txHash,
+      evidenceHash: verified.hash,
+    });
+    await tx.insert(s.entitlements).values({
+      userId: invoice.userId,
+      invoiceId: id,
+      source: invoice.provider === "demo" ? "demo_payment" : "payment",
+      ...period,
+    });
     await tx
       .update(s.invoices)
       .set({
