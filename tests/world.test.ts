@@ -105,7 +105,7 @@ describe("agent approvals: fresh authentication before every protected action", 
     ).rejects.toHaveProperty("code", "AGENT_NOT_LINKED");
     await link("maya");
     const linked = await user(DEMO_IDS.maya);
-    expect(linked.worldAgentSub).toBe("sim:user-" + DEMO_IDS.maya.slice(0, 8));
+    expect(linked.worldAgentSub).toBe("sim:user-" + DEMO_IDS.maya.slice(-6));
     expect(linked.worldAgentIssuer).toBe("simulated");
     expect((await api("me", "maya")).body.user.worldAgentLinked ?? true).toBe(true);
   });

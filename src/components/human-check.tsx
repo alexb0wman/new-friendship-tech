@@ -68,7 +68,8 @@ function activationBody(props: HumanCheckProps, proof: unknown) {
 }
 function SimulatedHumanPanel(props: HumanCheckProps) {
   const { api, me } = useSession();
-  const [human, setHuman] = useState("human-" + (me?.user.id.slice(0, 6) ?? "demo"));
+  // Demo account ids share a prefix, so the suffix is what tells accounts apart.
+  const [human, setHuman] = useState("human-" + (me?.user.id.slice(-6) ?? "demo"));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   async function verify(unavailable = false) {

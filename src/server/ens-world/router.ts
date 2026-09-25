@@ -36,7 +36,7 @@ const simulateSchema = z
   })
   .strict();
 /** The simulated World ID identity for a demo account: stable per account so link and step-ups match. */
-export const simulatedHumanFor = (user: UserRow) => "user-" + user.id.slice(0, 8);
+export const simulatedHumanFor = (user: UserRow) => "user-" + user.id.slice(-6);
 
 export async function handle(ctx: RouteContext): Promise<Response | null> {
   const { path, method, request, url, ok } = ctx;

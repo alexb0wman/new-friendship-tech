@@ -22,8 +22,9 @@ import { tableRecord } from "./gatherings";
  * which would wait on the very initialisation this runs inside) and the simulated chain gets the
  * matching names and records so every fixture resolves.
  */
-const HUMAN = (id: string) => "human-" + id.slice(0, 6);
-const SUB = (id: string) => "sim:user-" + id.slice(0, 8);
+// Demo account ids share a prefix; the suffix tells them apart. Must match the UI default and simulatedHumanFor.
+const HUMAN = (id: string) => "human-" + id.slice(-6);
+const SUB = (id: string) => "sim:user-" + id.slice(-6);
 export async function seedEnsWorldDemo(db: Database) {
   if (!isDemo()) throw new Error("ENS world fixtures are local-demo only");
   if (process.env.NFT_SKIP_ENS_SEED === "true") return;
