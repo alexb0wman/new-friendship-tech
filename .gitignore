@@ -1,0 +1,14 @@
+node_modules/
+.next/
+out/
+dist/
+coverage/
+.env*
+!.env.example
+*.log
+*.tsbuildinfo
+.runtime/
+artifacts/
+public/fonts/*.woff*
+public/brand/*
+!public/brand/.gitkeep
