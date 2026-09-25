@@ -30,7 +30,16 @@ export const INTERESTS = [
 ];
 export const INTENTS = ["Coffee", "Food", "Drinks", "Work", "Walk", "Event", "Business"];
 export const CITIES = [
+  { slug: "bangkok", name: "Bangkok" },
   { slug: "tokyo", name: "Tokyo" },
+  { slug: "taipei", name: "Taipei" },
+  { slug: "seoul", name: "Seoul" },
+  { slug: "kyoto", name: "Kyoto" },
+  { slug: "singapore", name: "Singapore" },
+  { slug: "hanoi", name: "Hanoi" },
+  { slug: "ho-chi-minh-city", name: "Ho Chi Minh City" },
+  { slug: "chiang-mai", name: "Chiang Mai" },
+  { slug: "osaka", name: "Osaka" },
   { slug: "new-york", name: "New York" },
   { slug: "los-angeles", name: "Los Angeles" },
   { slug: "paris", name: "Paris" },
