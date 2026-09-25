@@ -32,26 +32,26 @@ export async function loadSavedCatalog() {
       });
   }
   const preview = new Map<string, number>();
-  for (const place of catalog.places) {
+  const values = catalog.places.map((place) => {
     const shown = preview.get(place.city) ?? 0;
     preview.set(place.city, shown + 1);
-    await db
-      .insert(s.places)
-      .values({
-        slug: place.slug,
-        city: place.city,
-        name: place.name,
-        neighborhood: place.neighborhood,
-        category: place.category,
-        note: place.note,
-        tags: [],
-        mapUrl: place.mapUrl,
-        sourceUrl: place.sourceUrl || place.mapUrl,
-        preview: shown < 6,
-        published: true,
-        fixture: false,
-      })
-      .onConflictDoNothing();
+    return {
+      slug: place.slug,
+      city: place.city,
+      name: place.name,
+      neighborhood: place.neighborhood,
+      category: place.category,
+      note: place.note,
+      tags: [] as string[],
+      mapUrl: place.mapUrl,
+      sourceUrl: place.sourceUrl || place.mapUrl,
+      preview: shown < 6,
+      published: true,
+      fixture: false,
+    };
+  });
+  for (let i = 0; i < values.length; i += 200) {
+    await db.insert(s.places).values(values.slice(i, i + 200)).onConflictDoNothing();
   }
   return { cities: catalog.cities.length, places: catalog.places.length };
 }
