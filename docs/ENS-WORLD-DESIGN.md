@@ -69,7 +69,7 @@ Concretely:
 - `rp_context` is produced server-side by `signRequest` from `@worldcoin/idkit-core/signing` with `RP_SIGNING_KEY`. It is never generated in the browser.
 - Widget: `IDKitRequestWidget` with `preset = proofOfHuman({ signal: city })`, `allow_legacy_proofs = true`, `environment` from `WORLD_ENVIRONMENT` (`staging` with the simulator during development, `production` otherwise). A second button offers `passport()` as the Orb-free path.
 - Verification: forward the IDKit result unchanged to `POST https://developer.world.org/api/v4/verify/{rp_id}`, require `success`, require the response `environment` to equal `WORLD_ENVIRONMENT`, then store the nullifier as `NUMERIC(78,0)`.
-- Signal binding: the backend records the `signal_hash` from the verified payload alongside the proof. Whether the backend can independently recompute the v4 signal hash for `city` depends on a helper exported by `idkit-core`; if none exists at build time the debrief records it as a missing capability and the check is `signal_hash` present and stable, not recomputed.
+- Signal binding: `@worldcoin/idkit-core/hashing` exports `hashSignal`, so the backend recomputes the signal hash for `city` and rejects a proof whose `signal_hash` differs (`WORLD_SIGNAL_MISMATCH`). The hash is also stored with the proof.
 - Uniqueness rule: `action = trip-activate` for every city, so one human has one nullifier for the app. "One active trip per human per city" is enforced as: no trip in `pending_chain` or `active` for the same `(city, nullifier)`. After expiry the same nullifier activates again. Cross-city trips are allowed by design (Level 2).
 
 ### 2.5 Trip label
@@ -91,7 +91,11 @@ interface ConciergeBrain {
 
 `RuleBrain` handles "who's around", "find me a dinner/lunch/coffee", and "post that I'm free for X until HH:MM" deterministically. `agent.ts` prefetches the read-only context, calls the brain, and turns proposals into approval requests. A model-backed brain implements the same interface and is selected by `CONCIERGE_BRAIN` (`rules` | `custom`); the custom loader is a single import point for the owner's inference stack.
 
-### 2.7 Split shares
+### 2.7 `table.claim` is folded into `table.approve`
+
+The spec lists five protected actions including `table.claim` (seat confirmed and attendee written on chain). In the demo flow the host's approval is the moment the attendee is written on chain, so a separate claim step would be a second step-up with no new decision behind it. v1 ships four protected actions: `now.publish`, `table.request`, `table.approve`, `contact.reveal`, plus `agent.link` for the one-time connection. `contact.reveal` is the existing mutual-contact acceptance, now agent-initiated: accepting an introduction through the concierge requires a fresh authentication.
+
+### 2.8 Split shares
 
 People at the table = approved attendees (host included) + plus-ones. `unit = ceil(total / people)`. Every non-host attendee owes `unit`; the host owes the remainder, which absorbs plus-one shares and rounding. Plus-ones cannot pay because they have no name to resolve.
 
