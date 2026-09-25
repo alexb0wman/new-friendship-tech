@@ -16,9 +16,9 @@ import {
 import { tableRecord } from "./gatherings";
 
 /**
- * Demo fixtures for the ENSv2 + World features: Kenji and Ari arrive with active trips and linked
- * concierges, and Kenji hosts a dinner tonight. Maya starts without a trip so the demo can show
- * activation from scratch. Rows are written with the boot-time database handle (never getDb(),
+ * Demo fixtures for the ENSv2 + World features: Kenji arrives with an active trip, a linked
+ * concierge and a dinner tonight. Maya and Ari start without trips: Maya activates from scratch,
+ * Ari first tries Maya's World ID (rejected: one human, one trip) and then activates as herself. Rows are written with the boot-time database handle (never getDb(),
  * which would wait on the very initialisation this runs inside) and the simulated chain gets the
  * matching names and records so every fixture resolves.
  */
@@ -100,7 +100,6 @@ export async function seedEnsWorldDemo(db: Database) {
     return trip;
   }
   const kenji = await seedTrip(DEMO_IDS.kenji, "kenji", "0x" + "3".padStart(40, "0"));
-  await seedTrip(DEMO_IDS.ari, "ari", "0x" + "4".padStart(40, "0"));
   // Kenji's dinner tonight at a sample venue, six seats, open.
   const [place] = await db
     .select()
