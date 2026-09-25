@@ -14,16 +14,22 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "tsx scripts/migrate.ts",
-    "content:import": "tsx scripts/import-content.ts",
-    "worker": "tsx src/worker/index.ts",
-    "preflight": "tsx scripts/preflight.ts",
-    "check": "npm run typecheck && npm test && npm run build"
+    "db:migrate": "node --import tsx scripts/migrate.ts",
+    "content:import": "node --import tsx scripts/import-content.ts",
+    "worker": "node --import tsx src/worker/index.ts",
+    "preflight": "node --import tsx scripts/preflight.ts",
+    "check": "npm run typecheck && npm test && npm run build",
+    "admin:bootstrap": "node --import tsx scripts/bootstrap-admin.ts",
+    "test:e2e": "playwright test",
+    "smoke": "node scripts/http-smoke.mjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "@0gfoundation/0g-pay-sdk": "0.2.1",
     "@electric-sql/pglite": "0.5.8",
     "@google-cloud/kms": "6.2.0",
+    "@google-cloud/secret-manager": "7.1.0",
     "@privy-io/node": "0.35.0",
     "@privy-io/react-auth": "3.45.0",
     "drizzle-orm": "0.45.3",
@@ -37,6 +43,7 @@
     "zod": "4.6.5"
   },
   "devDependencies": {
+    "@playwright/test": "1.63.0",
     "@tailwindcss/postcss": "4.3.3",
     "@types/node": "26.6.2",
     "@types/pg": "8.23.1",
@@ -44,9 +51,13 @@
     "@types/react-dom": "19.3.0",
     "cross-env": "10.1.0",
     "drizzle-kit": "0.31.11",
+    "prettier": "3.9.9",
     "tailwindcss": "4.3.3",
     "tsx": "4.23.15",
     "typescript": "5.9.3",
     "vitest": "5.0.1"
+  },
+  "overrides": {
+    "ws@^8": "8.21.3"
   }
 }

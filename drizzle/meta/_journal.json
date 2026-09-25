@@ -8,6 +8,13 @@
       "when": 1790323315814,
       "tag": "0000_wandering_gauntlet",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790327356337,
+      "tag": "0001_overconfident_frog_thor",
+      "breakpoints": true
     }
   ]
 }

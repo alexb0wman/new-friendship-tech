@@ -12,3 +12,6 @@ artifacts/
 public/fonts/*.woff*
 public/brand/*
 !public/brand/.gitkeep
+playwright-report/
+test-results/
+content/*local*.json

@@ -13,12 +13,33 @@ class DemoAdapter implements PaymentAdapter {
   name = "demo";
   async quote(sourceWallet: string, usdCents: number) {
     invariant(isDemo(), "NOT_FOUND", "Not found.", 404);
-    return { obligation: { chainId: 0, recipient: "local-demo-only", asset: "DEMO_CENTS", amount: String(usdCents), sourceWallet, providerQuoteId: randomUUID() }, expiresAt: new Date(Date.now() + 10 * 60000) };
+    return {
+      obligation: {
+        chainId: 0,
+        recipient: "local-demo-only",
+        asset: "DEMO_CENTS",
+        amount: String(usdCents),
+        sourceWallet,
+        providerQuoteId: randomUUID(),
+      },
+      expiresAt: new Date(Date.now() + 10 * 60000),
+    };
   }
   async inspect(invoice: InvoiceRow) {
-    invariant(isDemo() && invoice.provider === "demo", "PROVIDER_MISMATCH", "Demo payments cannot verify real invoices.", 409);
+    invariant(
+      isDemo() && invoice.provider === "demo",
+      "PROVIDER_MISMATCH",
+      "Demo payments cannot verify real invoices.",
+      409,
+    );
     if (!invoice.sourceTx) return null;
-    return { ...invoice.quote, txHash: invoice.sourceTx, settlementIndex: "demo", success: true, finalized: true };
+    return {
+      ...invoice.quote,
+      txHash: invoice.sourceTx,
+      settlementIndex: "demo",
+      success: true,
+      finalized: true,
+    };
   }
 }
 class OgPayMerchantAdapter implements PaymentAdapter {
@@ -26,20 +47,43 @@ class OgPayMerchantAdapter implements PaymentAdapter {
   async quote(_sourceWallet: string, _usdCents: number): Promise<never> {
     // The SDK supports developer-mode recipients, but the published REST funding API
     // does not establish merchant invoice binding. Never invent that bridge.
-    throw new AppError("PAYMENT_ROUTE_UNVERIFIED", "Live checkout is being configured. No payment has been requested.", 503);
+    throw new AppError(
+      "PAYMENT_ROUTE_UNVERIFIED",
+      "Live checkout is being configured. No payment has been requested.",
+      503,
+    );
   }
   async inspect(_invoice: InvoiceRow): Promise<never> {
-    throw new AppError("PAYMENT_ROUTE_UNVERIFIED", "Merchant settlement verification is not configured.", 503, true);
+    throw new AppError(
+      "PAYMENT_ROUTE_UNVERIFIED",
+      "Merchant settlement verification is not configured.",
+      503,
+      true,
+    );
   }
 }
 export function paymentAdapter(provider?: string): PaymentAdapter {
   if (isDemo() && (!provider || provider === "demo")) return new DemoAdapter();
-  invariant(provider !== "demo", "PROVIDER_MISMATCH", "Demo invoices are invalid in production.", 409);
+  invariant(
+    provider !== "demo",
+    "PROVIDER_MISMATCH",
+    "Demo invoices are invalid in production.",
+    409,
+  );
   return new OgPayMerchantAdapter();
 }
 export function checkoutStatus() {
   if (isDemo()) return { enabled: true, demo: true, reason: "Local simulation. No funds move." };
   // Keep this fail-closed until the real adapter has its own integration evidence.
-  return { enabled: false, demo: false, reason: config().checkoutEnabled ? "Merchant verification is not yet configured." : "Live checkout has not opened yet." };
+  return {
+    enabled: false,
+    demo: false,
+    reason: config().checkoutEnabled
+      ? "Merchant verification is not yet configured."
+      : "Live checkout has not opened yet.",
+  };
 }
-export function demoTransactionHash() { invariant(isDemo(), "NOT_FOUND", "Not found.", 404); return "0x" + randomBytes(32).toString("hex"); }
+export function demoTransactionHash() {
+  invariant(isDemo(), "NOT_FOUND", "Not found.", 404);
+  return "0x" + randomBytes(32).toString("hex");
+}

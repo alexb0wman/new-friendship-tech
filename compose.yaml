@@ -1,0 +1,17 @@
+# Local dedicated PostgreSQL; not a production deployment recipe.
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: nftech
+      POSTGRES_USER: nftech
+      POSTGRES_PASSWORD: local-development-only
+    ports: ["127.0.0.1:5432:5432"]
+    volumes: ["nftech-db:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nftech -d nftech"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+volumes:
+  nftech-db:

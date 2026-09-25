@@ -2,22 +2,44 @@ import { randomUUID } from "node:crypto";
 import { runWorkerOnce } from "@/server/payments/service";
 import { closeDb } from "@/server/db";
 import { isDemo } from "@/server/config";
+import { loadRuntimeSecrets } from "@/server/secrets";
 const workerId = randomUUID();
 let running = true;
-process.on("SIGTERM", () => { running = false; });
-process.on("SIGINT", () => { running = false; });
+process.on("SIGTERM", () => {
+  running = false;
+});
+process.on("SIGINT", () => {
+  running = false;
+});
 async function main() {
-  if (isDemo()) throw new Error("The isolated demo reconciles in-process. A separate worker needs PostgreSQL.");
+  await loadRuntimeSecrets();
+  if (isDemo())
+    throw new Error("The isolated demo reconciles in-process. A separate worker needs PostgreSQL.");
   while (running) {
     try {
       const worked = await runWorkerOnce(workerId);
-      console.log(JSON.stringify({ event: "worker.heartbeat", workerId, worked, at: new Date().toISOString() }));
+      console.log(
+        JSON.stringify({
+          event: "worker.heartbeat",
+          workerId,
+          worked,
+          at: new Date().toISOString(),
+        }),
+      );
       await new Promise((resolve) => setTimeout(resolve, worked ? 1000 : 5000));
     } catch (error) {
-      console.error(JSON.stringify({ event: "worker.error", kind: error instanceof Error ? error.name : "unknown" }));
+      console.error(
+        JSON.stringify({
+          event: "worker.error",
+          kind: error instanceof Error ? error.name : "unknown",
+        }),
+      );
       await new Promise((resolve) => setTimeout(resolve, 5000));
     }
   }
   await closeDb();
 }
-main().catch(() => { console.error("Worker failed to start"); process.exitCode = 1; });
+main().catch(() => {
+  console.error("Worker failed to start");
+  process.exitCode = 1;
+});

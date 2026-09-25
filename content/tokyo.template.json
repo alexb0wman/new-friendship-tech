@@ -1,0 +1,6 @@
+{
+  "originalOrLicensed": true,
+  "cities": [{ "slug": "tokyo", "name": "Tokyo", "timezone": "Asia/Tokyo", "published": false }],
+  "places": [],
+  "events": []
+}

@@ -7,69 +7,182 @@ import { applyWrite } from "./db/write";
 import { invariant } from "./errors";
 import type { Category, Place } from "@/lib/types";
 
-export function rankPlaces(items: Place[], interests: string[], intents: string[], neighborhood: string) {
-  return items.map((place) => {
-    const interest = place.tags.find((tag) => interests.includes(tag));
-    const intent = place.tags.find((tag) => intents.includes(tag));
-    const nearby = place.neighborhood === neighborhood;
-    return { ...place, reasons: [interest ? "Matches " + interest : null, intent ? "Good for " + intent.toLowerCase() : null, nearby ? "Your selected neighborhood" : null].filter((item): item is string => !!item).slice(0, 2),
-      score: (interest ? 3 : 0) + (intent ? 2 : 0) + (nearby ? 1 : 0) };
-  }).sort((a, b) => b.score - a.score || a.name.localeCompare(b.name)).map(({ score: _score, ...place }) => place);
+export function rankPlaces(
+  items: Place[],
+  interests: string[],
+  intents: string[],
+  neighborhood: string,
+) {
+  return items
+    .map((place) => {
+      const interest = place.tags.find((tag) => interests.includes(tag));
+      const intent = place.tags.find((tag) => intents.includes(tag));
+      const nearby = place.neighborhood === neighborhood;
+      return {
+        ...place,
+        reasons: [
+          interest ? "Matches " + interest : null,
+          intent ? "Good for " + intent.toLowerCase() : null,
+          nearby ? "Your selected neighborhood" : null,
+        ]
+          .filter((item): item is string => !!item)
+          .slice(0, 2),
+        score: (interest ? 3 : 0) + (intent ? 2 : 0) + (nearby ? 1 : 0),
+      };
+    })
+    .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
+    .map(({ score: _score, ...place }) => place);
 }
 function placeDTO(row: typeof s.places.$inferSelect): Place {
-  return { id: row.id, slug: row.slug, city: row.city, name: row.name, neighborhood: row.neighborhood, category: row.category,
-    note: row.note, tags: row.tags, mapUrl: row.mapUrl, sourceUrl: row.sourceUrl, price: row.price, preview: row.preview,
-    fixture: row.fixture, artwork: row.artwork, reviewedAt: row.reviewedAt?.toISOString() ?? null };
+  return {
+    id: row.id,
+    slug: row.slug,
+    city: row.city,
+    name: row.name,
+    neighborhood: row.neighborhood,
+    category: row.category,
+    note: row.note,
+    tags: row.tags,
+    mapUrl: row.mapUrl,
+    sourceUrl: row.sourceUrl,
+    price: row.price,
+    preview: row.preview,
+    fixture: row.fixture,
+    artwork: row.artwork,
+    reviewedAt: row.reviewedAt?.toISOString() ?? null,
+  };
 }
-export async function listCities() { return (await getDb()).select().from(s.cities).where(eq(s.cities.published, true)).orderBy(asc(s.cities.name)); }
+export async function listCities() {
+  return (await getDb())
+    .select()
+    .from(s.cities)
+    .where(eq(s.cities.published, true))
+    .orderBy(asc(s.cities.name));
+}
 export async function publishedCity(slug: string) {
-  const [city] = await (await getDb()).select().from(s.cities).where(and(eq(s.cities.slug, slug), eq(s.cities.published, true)));
-  invariant(city, "NOT_FOUND", "This city is not published yet.", 404); return city;
+  const [city] = await (
+    await getDb()
+  )
+    .select()
+    .from(s.cities)
+    .where(and(eq(s.cities.slug, slug), eq(s.cities.published, true)));
+  invariant(city, "NOT_FOUND", "This city is not published yet.", 404);
+  return city;
 }
 export async function listPlaces(user: s.UserRow | null, params: URLSearchParams) {
-  const db = await getDb(), city = params.get("city") ?? "tokyo";
+  const db = await getDb(),
+    city = params.get("city") ?? "tokyo";
   await publishedCity(city);
   const paid = user ? (await membership(user.id)).active : false;
-  const category = params.get("category"), area = params.get("neighborhood"), query = params.get("q")?.slice(0, 80);
-  const rows = await db.select().from(s.places).where(and(
-    eq(s.places.city, city), eq(s.places.published, true), paid ? undefined : eq(s.places.preview, true),
-    category && category !== "All" ? eq(s.places.category, category as Category) : undefined,
-    area && area !== "Anywhere in Tokyo" ? eq(s.places.neighborhood, area) : undefined,
-    query ? or(ilike(s.places.name, "%" + query + "%"), ilike(s.places.neighborhood, "%" + query + "%")) : undefined,
-  )).orderBy(asc(s.places.name)).limit(60);
+  const category = params.get("category"),
+    area = params.get("neighborhood"),
+    query = params.get("q")?.slice(0, 80);
+  const rows = await db
+    .select()
+    .from(s.places)
+    .where(
+      and(
+        eq(s.places.city, city),
+        eq(s.places.published, true),
+        paid ? undefined : eq(s.places.preview, true),
+        category && category !== "All" ? eq(s.places.category, category as Category) : undefined,
+        area && area !== "Anywhere in Tokyo" ? eq(s.places.neighborhood, area) : undefined,
+        query
+          ? or(
+              ilike(s.places.name, "%" + query + "%"),
+              ilike(s.places.neighborhood, "%" + query + "%"),
+            )
+          : undefined,
+      ),
+    )
+    .orderBy(asc(s.places.name))
+    .limit(60);
   const saved = user ? await db.select().from(s.saves).where(eq(s.saves.userId, user.id)) : [];
   const savedIds = new Set(saved.map((row) => row.placeId));
-  const items = rankPlaces(rows.map((row) => ({ ...placeDTO(row), saved: savedIds.has(row.id) })), user?.interests ?? [], user?.intents ?? [], user?.neighborhood ?? "");
+  const items = rankPlaces(
+    rows.map((row) => ({ ...placeDTO(row), saved: savedIds.has(row.id) })),
+    user?.interests ?? [],
+    user?.intents ?? [],
+    user?.neighborhood ?? "",
+  );
   return { items, access: paid ? "all_access" : "preview", city };
 }
 export async function getPlace(user: s.UserRow | null, slug: string) {
   const db = await getDb();
-  const [place] = await db.select().from(s.places).where(and(eq(s.places.slug, slug), eq(s.places.published, true))).limit(1);
+  const [place] = await db
+    .select()
+    .from(s.places)
+    .where(and(eq(s.places.slug, slug), eq(s.places.published, true)))
+    .limit(1);
   invariant(place, "NOT_FOUND", "Place not found.", 404);
   await publishedCity(place.city);
-  if (!place.preview) { invariant(user, "UNAUTHENTICATED", "Sign in to see this place.", 401); await requireMember(user.id); }
-  const [saved] = user ? await db.select().from(s.saves).where(and(eq(s.saves.userId, user.id), eq(s.saves.placeId, place.id))) : [];
+  if (!place.preview) {
+    invariant(user, "UNAUTHENTICATED", "Sign in to see this place.", 401);
+    await requireMember(user.id);
+  }
+  const [saved] = user
+    ? await db
+        .select()
+        .from(s.saves)
+        .where(and(eq(s.saves.userId, user.id), eq(s.saves.placeId, place.id)))
+    : [];
   return { ...placeDTO(place), saved: !!saved };
 }
 export async function listEvents(user: s.UserRow | null, city = "tokyo") {
   await publishedCity(city);
   const db = await getDb();
-  const rows = await db.select().from(s.events).where(and(eq(s.events.city, city), eq(s.events.published, true), gt(s.events.endsAt, new Date()))).orderBy(asc(s.events.startsAt)).limit(50);
+  const rows = await db
+    .select()
+    .from(s.events)
+    .where(
+      and(eq(s.events.city, city), eq(s.events.published, true), gt(s.events.endsAt, new Date())),
+    )
+    .orderBy(asc(s.events.startsAt))
+    .limit(50);
   const saved = user ? await db.select().from(s.saves).where(eq(s.saves.userId, user.id)) : [];
-  return rows.map((row) => ({ ...row, startsAt: row.startsAt.toISOString(), endsAt: row.endsAt.toISOString(), saved: saved.some((item) => item.eventId === row.id) }));
+  return rows.map((row) => ({
+    ...row,
+    startsAt: row.startsAt.toISOString(),
+    endsAt: row.endsAt.toISOString(),
+    saved: saved.some((item) => item.eventId === row.id),
+  }));
 }
-export const saveSchema = z.object({ type: z.enum(["place", "event"]), id: z.string().uuid(), saved: z.boolean() });
+export const saveSchema = z.object({
+  type: z.enum(["place", "event"]),
+  id: z.string().uuid(),
+  saved: z.boolean(),
+});
 export async function setSave(userId: string, data: z.infer<typeof saveSchema>) {
   const db = await getDb();
   const table = data.type === "place" ? s.places : s.events;
-  const [target] = await db.select().from(table).where(and(eq(table.id, data.id), eq(table.published, true))).limit(1);
+  const [target] = await db
+    .select()
+    .from(table)
+    .where(and(eq(table.id, data.id), eq(table.published, true)))
+    .limit(1);
   invariant(target, "NOT_FOUND", "Item not found.", 404);
   await publishedCity(target.city);
   // Removing an existing save remains available after membership expiry.
   if (data.saved && data.type === "place") await requireMember(userId);
   await applyWrite(userId, data.saved ? "save.add" : "save.remove", data.id, async (tx) => {
-    if (!data.saved) await tx.delete(s.saves).where(and(eq(s.saves.userId, userId), data.type === "place" ? eq(s.saves.placeId, data.id) : eq(s.saves.eventId, data.id)));
-    else await tx.insert(s.saves).values({ userId, placeId: data.type === "place" ? data.id : null, eventId: data.type === "event" ? data.id : null }).onConflictDoNothing();
+    if (!data.saved)
+      await tx
+        .delete(s.saves)
+        .where(
+          and(
+            eq(s.saves.userId, userId),
+            data.type === "place" ? eq(s.saves.placeId, data.id) : eq(s.saves.eventId, data.id),
+          ),
+        );
+    else
+      await tx
+        .insert(s.saves)
+        .values({
+          userId,
+          placeId: data.type === "place" ? data.id : null,
+          eventId: data.type === "event" ? data.id : null,
+        })
+        .onConflictDoNothing();
   });
 }
 export async function savedItems(userId: string) {
@@ -77,11 +190,45 @@ export async function savedItems(userId: string) {
   const rows = await db.select().from(s.saves).where(eq(s.saves.userId, userId)).limit(200);
   const placeIds = rows.map((row) => row.placeId).filter((id): id is string => !!id);
   const eventIds = rows.map((row) => row.eventId).filter((id): id is string => !!id);
-  const cities = await listCities(), cityIds = cities.map((city) => city.slug);
+  const cities = await listCities(),
+    cityIds = cities.map((city) => city.slug);
   if (!cityIds.length) return { places: [], events: [] };
   const paid = (await membership(userId)).active;
-  const places = placeIds.length ? await db.select().from(s.places).where(and(inArray(s.places.id, placeIds), inArray(s.places.city, cityIds), eq(s.places.published, true))) : [];
-  const events = eventIds.length ? await db.select().from(s.events).where(and(inArray(s.events.id, eventIds), inArray(s.events.city, cityIds), eq(s.events.published, true))) : [];
-  return { places: places.map((row) => ({ ...placeDTO(row), note: paid || row.preview ? row.note : "Renew All Access to reopen this recommendation.", saved: true })),
-    events: events.map((row) => ({ ...row, startsAt: row.startsAt.toISOString(), endsAt: row.endsAt.toISOString(), saved: true })) };
+  const places = placeIds.length
+    ? await db
+        .select()
+        .from(s.places)
+        .where(
+          and(
+            inArray(s.places.id, placeIds),
+            inArray(s.places.city, cityIds),
+            eq(s.places.published, true),
+          ),
+        )
+    : [];
+  const events = eventIds.length
+    ? await db
+        .select()
+        .from(s.events)
+        .where(
+          and(
+            inArray(s.events.id, eventIds),
+            inArray(s.events.city, cityIds),
+            eq(s.events.published, true),
+          ),
+        )
+    : [];
+  return {
+    places: places.map((row) => ({
+      ...placeDTO(row),
+      note: paid || row.preview ? row.note : "Renew All Access to reopen this recommendation.",
+      saved: true,
+    })),
+    events: events.map((row) => ({
+      ...row,
+      startsAt: row.startsAt.toISOString(),
+      endsAt: row.endsAt.toISOString(),
+      saved: true,
+    })),
+  };
 }

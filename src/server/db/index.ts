@@ -11,16 +11,18 @@ export type Database = PgDatabase<PgQueryResultHKT, typeof schema>;
 export type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
 type Runtime = { database?: Promise<Database>; pglite?: PGlite; pool?: Pool };
 const globalDb = globalThis as typeof globalThis & { __nftechDb?: Runtime };
-const runtime = globalDb.__nftechDb ??= {};
+const runtime = (globalDb.__nftechDb ??= {});
 export async function getDb(): Promise<Database> {
-  return runtime.database ??= initialize();
+  return (runtime.database ??= initialize());
 }
 async function initialize(): Promise<Database> {
   const env = config();
   if (env.demo) {
     const client = new PGlite();
     runtime.pglite = client;
-    const migrations = (await readdir(join(process.cwd(), "drizzle"))).filter((file) => file.endsWith(".sql")).sort();
+    const migrations = (await readdir(join(process.cwd(), "drizzle")))
+      .filter((file) => file.endsWith(".sql"))
+      .sort();
     for (const file of migrations) {
       const content = await readFile(join(process.cwd(), "drizzle", file), "utf8");
       await client.exec(content);
@@ -30,12 +32,21 @@ async function initialize(): Promise<Database> {
     await seedDemo(db);
     return db;
   }
-  if (!env.databaseUrl) throw new Error("DATABASE_URL is required. Use npm run demo for an isolated local preview.");
-  const pool = new Pool({ connectionString: env.databaseUrl, max: 10, connectionTimeoutMillis: 5000, idleTimeoutMillis: 30000 });
+  if (!env.databaseUrl)
+    throw new Error("DATABASE_URL is required. Use npm run demo for an isolated local preview.");
+  const pool = new Pool({
+    connectionString: env.databaseUrl,
+    max: 10,
+    connectionTimeoutMillis: 5000,
+    idleTimeoutMillis: 30000,
+  });
   runtime.pool = pool;
   return pgDrizzle(pool, { schema });
 }
 export async function closeDb() {
-  await runtime.pglite?.close(); await runtime.pool?.end();
-  runtime.database = undefined; runtime.pglite = undefined; runtime.pool = undefined;
+  await runtime.pglite?.close();
+  await runtime.pool?.end();
+  runtime.database = undefined;
+  runtime.pglite = undefined;
+  runtime.pool = undefined;
 }
