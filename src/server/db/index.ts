@@ -33,7 +33,7 @@ async function initialize(): Promise<Database> {
       await seedDemo(db);
     } else if (process.env.NFT_EMBEDDED_DB === "true") {
       const { loadSavedCatalog } = await import("../catalog-import");
-      await loadSavedCatalog();
+      await loadSavedCatalog(db);
     }
     return db;
   }

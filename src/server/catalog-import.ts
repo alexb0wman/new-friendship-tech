@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { sql } from "drizzle-orm";
+import type { Database } from "./db";
 import { getDb } from "./db";
 import * as s from "./db/schema";
 
@@ -18,8 +19,8 @@ type Catalog = {
   }[];
 };
 
-export async function loadSavedCatalog() {
-  const db = await getDb();
+export async function loadSavedCatalog(existing?: Database) {
+  const db = existing ?? (await getDb());
   const file = join(process.cwd(), "content/asia-catalog.json");
   const catalog = JSON.parse(await readFile(file, "utf8")) as Catalog;
   for (const city of catalog.cities) {
