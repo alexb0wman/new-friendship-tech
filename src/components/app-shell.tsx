@@ -1,18 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Compass,
-  Users,
-  ArrowUpRight,
-  Settings,
-  LogOut,
-  ChevronDown,
-  Palette,
-  Music2,
-  Cpu,
-  Bell,
-} from "lucide-react";
+import { ArrowUpRight, Settings, LogOut, ChevronDown, Bell } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { useResource, useSession } from "./session";
 import { Avatar, Modal } from "./ui";
@@ -22,64 +11,85 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname(),
     { me, config, login, logout, switchDemo, notice } = useSession();
   const [accountOpen, setAccountOpen] = useState(false),
-    [cityOpen, setCityOpen] = useState(false),
-    [openTopic, setOpenTopic] = useState<string | null>(null);
+    [cityOpen, setCityOpen] = useState(false);
   const { data: cityData } = useResource<{ items: City[] }>("cities");
   const citySlug =
     cityData?.items.find((city) => pathname.startsWith("/" + city.slug))?.slug ?? "tokyo";
-  const topics = [
+  const [openBucket, setOpenBucket] = useState<string | null>(null);
+  const buckets = [
     {
+      id: "network",
+      label: "Network",
+      line: "People, paths, and the register.",
+      items: [
+        ["/network", "Network", "Search people and browse the register."],
+        ["/atlas", "Atlas", "Trace a warm path you are allowed to see."],
+        ["/introductions", "Intros", "Send a request, or answer one waiting for you."],
+        ["/companies", "Companies", "Affiliations members have written themselves."],
+        ["/capital", "Capital", "Founders and investors, not a deal room."],
+        ["/cities", "Cities", "Where members actually gather."],
+        ["/standings", "Standings", "Recorded connections. Not a score of worth."],
+        ["/invite-tree", "Invite Tree", "Who referred whom, when that is known."],
+      ],
+    },
+    {
+      id: "events",
+      label: "Events",
+      line: "What is on, and what you are doing now.",
+      items: [
+        ["/" + citySlug + "/events", "Events", "Save a listing. A save is not a ticket."],
+        ["/where-to-be", "Where to be", "The week in the city you selected."],
+        ["/" + citySlug + "/now", "Right now", "Post a plan that expires on its own."],
+      ],
+    },
+    {
+      id: "intelligence",
+      label: "Intelligence",
+      line: "Sourced stories. Nothing without a source.",
+      items: [
+        ["/intelligence", "Intelligence", "The wire, filtered by topic."],
+        ["/read", "Read", "Longer pieces from the same desk."],
+      ],
+    },
+    {
+      id: "travel",
       label: "Travel",
-      href: "/travel",
+      line: "Places and guides for the city you are in.",
       items: [
-        ["/" + citySlug, "Places", "The saved collection"],
-        ["/" + citySlug + "/events", "Events", "What is on"],
-        ["/" + citySlug + "/now", "Right now", "Temporary plans"],
-        ["/travel", "Guides", "City stories"],
-        ["/cities", "Cities", "Everywhere we cover"],
+        ["/" + citySlug, "Places", "The saved collection for this city."],
+        ["/travel", "Guides", "Short city stories, labeled as such."],
+        ["/cities", "Cities", "Every published city, Tokyo first."],
       ],
     },
     {
-      label: "Art",
-      href: "/art",
+      id: "culture",
+      label: "Culture",
+      line: "Art, music, and tech in one membership.",
       items: [
-        ["/art", "Featured", "The latest"],
-        ["/art?kind=story", "Stories", "Exhibitions and creators"],
-        ["/art?kind=company", "Galleries", "Featured spaces"],
+        ["/art", "Art", "Creators, exhibitions, and culture stories."],
+        ["/music", "Music", "Playlists, artists, and shows."],
+        ["/tech", "Tech", "Opportunities, companies, and people."],
       ],
     },
     {
-      label: "Music",
-      href: "/music",
+      id: "membership",
+      label: "Membership",
+      line: "One plan. The rules are on the page.",
       items: [
-        ["/music", "Featured", "The latest"],
-        ["/music?kind=playlist", "Playlists", "Curated listens"],
-        ["/music?kind=story", "Stories", "Artists and shows"],
+        ["/membership", "Membership", "All Access, thirty days, every city."],
+        ["/onboarding", "Join", "Create an account and set your profile."],
+        ["/trust", "Trust", "What a label means, and what it does not."],
+        ["/policy", "Member policy", "Consent, blocks, and reports."],
+        ...(me?.user.admin
+          ? [
+              ["/admin", "Admin", "Add or edit any entry."],
+              ["/operations", "Operations", "Reports and the review queue."],
+            ]
+          : []),
       ],
     },
-    {
-      label: "Tech",
-      href: "/tech",
-      items: [
-        ["/tech", "Featured", "The latest"],
-        ["/tech?kind=opportunity", "Opportunities", "Jobs and teams"],
-        ["/tech?kind=company", "Companies", "Featured teams"],
-        ["/network", "People", "The member directory"],
-      ],
-    },
   ];
-  const plain = [
-    { href: "/network", label: "Network" },
-    { href: "/membership", label: "Membership" },
-  ];
-  const mobile = [
-    { href: "/" + citySlug, label: "Travel", icon: Compass },
-    { href: "/art", label: "Art", icon: Palette },
-    { href: "/music", label: "Music", icon: Music2 },
-    { href: "/tech", label: "Tech", icon: Cpu },
-    { href: "/network", label: "Network", icon: Users },
-  ];
-  const active = (href: string) => pathname === href || pathname.startsWith(href + "/");
+  const current = buckets.find((bucket) => bucket.id === openBucket) ?? null;
   return (
     <div className="app-frame">
       {config?.demo && (
@@ -114,42 +124,16 @@ export function AppShell({ children }: { children: ReactNode }) {
           <ChevronDown size={14} />
         </button>
         <nav className="desktop-nav" aria-label="Main navigation">
-          {topics.map((topic) => (
-            <span key={topic.label} className="nav-topic">
-              <button
-                className={"topic-button" + (active(topic.href) ? " active" : "")}
-                aria-expanded={openTopic === topic.label}
-                aria-haspopup="true"
-                onClick={() => setOpenTopic(openTopic === topic.label ? null : topic.label)}
-              >
-                {topic.label} <ChevronDown size={13} />
-              </button>
-              {openTopic === topic.label && (
-                <div className="topic-menu" role="menu">
-                  {topic.items.map(([href, label, detail]) => (
-                    <Link
-                      key={label}
-                      href={href}
-                      role="menuitem"
-                      onClick={() => setOpenTopic(null)}
-                    >
-                      <strong>{label}</strong>
-                      <span>{detail}</span>
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </span>
-          ))}
-          {plain.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={active(item.href) ? "active" : ""}
-              aria-current={active(item.href) ? "page" : undefined}
+          {buckets.map((bucket) => (
+            <button
+              key={bucket.id}
+              type="button"
+              className={openBucket === bucket.id ? "active" : ""}
+              aria-expanded={openBucket === bucket.id}
+              onClick={() => setOpenBucket(openBucket === bucket.id ? null : bucket.id)}
             >
-              {item.label}
-            </Link>
+              {bucket.label}
+            </button>
           ))}
         </nav>
         <div className="header-actions">
@@ -182,24 +166,35 @@ export function AppShell({ children }: { children: ReactNode }) {
           TOKYO ALPHA · <Link href="/privacy">Privacy</Link> · <Link href="/terms">Terms</Link>
         </span>
       </footer>
-      {openTopic && (
-        <div
-          className="topic-backdrop"
-          role="presentation"
-          onClick={() => setOpenTopic(null)}
-        />
+      {current && (
+        <>
+          <button className="mega-backdrop" aria-label="Close menu" onClick={() => setOpenBucket(null)} />
+          <div className="mega-menu" role="navigation" aria-label={current.label}>
+            <div className="mega-intro">
+              <p className="eyebrow">{current.label}</p>
+              <h2>{current.line}</h2>
+            </div>
+            <div className="mega-grid">
+              {current.items.map(([href, label, detail]) => (
+                <Link key={href} href={href} onClick={() => setOpenBucket(null)}>
+                  <strong>{label}</strong>
+                  <span>{detail}</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </>
       )}
       <nav className="bottom-nav" aria-label="Mobile navigation">
-        {mobile.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={active(item.href) ? "active" : ""}
-            aria-current={active(item.href) ? "page" : undefined}
+        {buckets.map((bucket) => (
+          <button
+            key={bucket.id}
+            type="button"
+            className={openBucket === bucket.id ? "active" : ""}
+            onClick={() => setOpenBucket(openBucket === bucket.id ? null : bucket.id)}
           >
-            <item.icon size={20} />
-            <span>{item.label}</span>
-          </Link>
+            <span>{bucket.label}</span>
+          </button>
         ))}
       </nav>
       <Modal open={accountOpen} title="Your account" onClose={() => setAccountOpen(false)}>
