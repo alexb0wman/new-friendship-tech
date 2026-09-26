@@ -1,21 +1,12 @@
 "use client";
 import dynamic from "next/dynamic";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ApiError, useSession } from "./session";
 import { Arrow, ErrorBox } from "./ui";
 import type { TripDTO } from "@/lib/types";
+import type { ProofRequestDTO } from "@/server/world/adapter";
 
 const IdkitWidget = dynamic(() => import("./idkit-widget"), { ssr: false });
-interface RpContextDTO {
-  rp_id: string;
-  nonce: string;
-  created_at: number;
-  expires_at: number;
-  signature: string;
-  app_id: string;
-  action: string;
-  environment: string;
-}
 export interface HumanCheckProps {
   city: string;
   label: string;
@@ -26,9 +17,9 @@ export interface HumanCheckProps {
 }
 const FAILURE_COPY: Record<string, string> = {
   WORLD_CREDENTIAL_UNAVAILABLE:
-    "This World ID has no Proof of Human credential yet. Try the passport path, or come back after an Orb visit.",
+    "This World ID needs a Proof of Human credential. Complete verification in World App first.",
   WORLD_VERIFY_FAILED: "World ID could not verify that proof. No trip was created.",
-  WORLD_SIGNAL_MISMATCH: "That proof was made for a different city. No trip was created.",
+  WORLD_SIGNAL_MISMATCH: "That proof was made for different trip details. Start again.",
   HUMAN_ALREADY_PRESENT:
     "This World ID already has an active trip in this city. One human, one trip: end the other trip first.",
   TRIP_EXISTS: "You already have an active trip here.",
@@ -41,7 +32,7 @@ export function failureCopy(error: unknown) {
 /**
  * The trust moment: activating a trip makes a member publicly present in a city and lets them host
  * or join tables with strangers. The minimum sufficient assurance is that they are one human, so the
- * widget asks for Proof of Human (passport as the Orb-free alternative). The demo swaps the widget for
+ * widget asks for Proof of Human. The demo swaps the widget for
  * a simulated panel that exercises the same backend paths, including the failure paths.
  */
 export function HumanCheck(props: HumanCheckProps) {
@@ -51,8 +42,7 @@ export function HumanCheck(props: HumanCheckProps) {
   if (!config.world.enabled)
     return (
       <div className="note">
-        World ID is not configured on this deployment. Set WORLD_APP_ID, WORLD_RP_ID and the RP
-        signing key to activate trips.
+        World ID verification is not available yet. Please try again later.
       </div>
     );
   return <LiveHumanCheck {...props} />;
@@ -130,28 +120,33 @@ function SimulatedHumanPanel(props: HumanCheckProps) {
 }
 function LiveHumanCheck(props: HumanCheckProps) {
   const { api, config } = useSession();
-  const [rp, setRp] = useState<RpContextDTO | null>(null);
-  const [credential, setCredential] = useState<"human" | "passport">("human");
+  const [rp, setRp] = useState<ProofRequestDTO | null>(null);
+  const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    api<RpContextDTO>("world/rp-context?action=" + encodeURIComponent(config?.world.action ?? ""))
-      .then((value) => {
-        if (!cancelled) setRp(value);
-      })
-      .catch((caught) => {
-        if (!cancelled) setError(new Error(failureCopy(caught)));
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [api, config?.world.action]);
+  async function start() {
+    setBusy(true);
+    setError(null);
+    try {
+      const { proof: _proof, ...body } = activationBody(props, undefined);
+      setRp(
+        await api<ProofRequestDTO>("world/rp-context", {
+          method: "POST",
+          body: JSON.stringify(body),
+        }),
+      );
+      setOpen(true);
+    } catch (caught) {
+      setError(new Error(failureCopy(caught)));
+    } finally {
+      setBusy(false);
+    }
+  }
   if (!config) return null;
   const environment = (
     ["production", "staging", "sandbox"].includes(config.world.environment)
       ? config.world.environment
-      : "staging"
+      : "production"
   ) as "production" | "staging" | "sandbox";
   return (
     <div className="sim-panel" role="group" aria-label="World ID">
@@ -160,25 +155,8 @@ function LiveHumanCheck(props: HumanCheckProps) {
       </p>
       <ErrorBox error={error} />
       <div className="button-row">
-        <button
-          className="button lime"
-          disabled={!rp}
-          onClick={() => {
-            setCredential("human");
-            setOpen(true);
-          }}
-        >
+        <button className="button lime" disabled={busy} onClick={() => void start()}>
           Verify with World ID <Arrow />
-        </button>
-        <button
-          className="button ghost"
-          disabled={!rp}
-          onClick={() => {
-            setCredential("passport");
-            setOpen(true);
-          }}
-        >
-          Use passport instead
         </button>
         <button className="button ghost" onClick={() => props.onCancel("No trip was created.")}>
           Cancel
@@ -201,13 +179,13 @@ function LiveHumanCheck(props: HumanCheckProps) {
             signature: rp.signature,
           }}
           environment={environment}
-          credential={credential}
-          signal={props.city}
+          credential="human"
+          signal={rp.signal}
           onVerify={async (result) => {
             try {
               const trip = await api<TripDTO>("world/verify", {
                 method: "POST",
-                body: JSON.stringify(activationBody(props, result)),
+                body: JSON.stringify({ ...activationBody(props, result), requestId: rp.requestId }),
               });
               props.onActivated(trip);
             } catch (caught) {

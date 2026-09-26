@@ -189,4 +189,28 @@ describe("trips: expiring ENSv2 names gated by proof of human", () => {
     expect(off.body.payAddress).toBeNull();
     expect(await chain().readAddr(created.body.name, 0x80000000 + 16661)).toBeNull();
   });
+  it("does not let a delayed expiry job clear a newer registration of the same name", async () => {
+    const created = await api("world/verify", "maya", "POST", activation("h-maya"));
+    const c = chain();
+    await expireTrips(new Date(new Date(created.body.departsAt).getTime() + 1000));
+    await c.unregisterTrip({ city: "tokyo", label: created.body.label });
+    const newOwner = "0x" + "3".padStart(40, "0");
+    await c.registerTrip({
+      city: "tokyo",
+      label: created.body.label,
+      owner: newOwner,
+      expiry: Math.floor(Date.now() / 1000) + 96 * 3600,
+    });
+    await c.setRecords("operator", created.body.name, [
+      { type: "addr", coinType: 60, address: newOwner },
+      { type: "text", key: "friendship.trip", value: "new registration" },
+    ]);
+    const { drainEnsJobs } = await import("@/server/ens-v2/jobs");
+    await drainEnsJobs();
+    expect(await c.readAddr(created.body.name)).toBe(newOwner);
+    expect(await c.readText(created.body.name, "friendship.trip")).toBe("new registration");
+    expect((await c.tripState({ city: "tokyo", label: created.body.label })).status).toBe(
+      "registered",
+    );
+  });
 });

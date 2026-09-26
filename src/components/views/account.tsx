@@ -274,7 +274,8 @@ export function SettingsView() {
     [busy, setBusy] = useState(""),
     [error, setError] = useState<Error | null>(null),
     [ensTx, setEnsTx] = useState(""),
-    [ensIntent, setEnsIntent] = useState("");
+    [ensIntent, setEnsIntent] = useState(""),
+    [ensChainId, setEnsChainId] = useState(1);
   async function action(key: string, fn: () => Promise<void>) {
     setBusy(key);
     setError(null);
@@ -332,9 +333,14 @@ export function SettingsView() {
         },
       ],
     });
+    setEnsChainId(prepared.chainId);
     setEnsIntent(prepared.intentId);
     setEnsTx(String(hash));
-    notice("Record update submitted on Sepolia. Confirm it after the transaction is mined.");
+    notice(
+      "Record update submitted on " +
+        (prepared.chainId === 1 ? "Ethereum" : "Sepolia") +
+        ". Confirm it after the transaction is mined.",
+    );
   }
   return (
     <>
@@ -454,17 +460,14 @@ export function SettingsView() {
           )}
         </section>
         <section className="settings-panel">
-          <Eyebrow>PORTABLE IDENTITY / SEPOLIA</Eyebrow>
-          <h2>Your ENSv2 passport.</h2>
+          <Eyebrow>PORTABLE IDENTITY / ENS</Eyebrow>
+          <h2>Your ENS name.</h2>
           <p className="muted">
             Link a name that resolves to your verified wallet. You control any public record you
             choose to publish.
           </p>
           {!config?.ensEnabled && (
-            <div className="note">
-              ENSv2 requires configured Sepolia RPC access. Names and transactions are never
-              simulated.
-            </div>
+            <div className="note">ENS name linking is not configured on this deployment.</div>
           )}
           <form
             onSubmit={(event) => {
@@ -520,11 +523,15 @@ export function SettingsView() {
           {ensTx && (
             <div className="note">
               <a
-                href={"https://sepolia.etherscan.io/tx/" + ensTx}
+                href={
+                  (ensChainId === 1
+                    ? "https://etherscan.io/tx/"
+                    : "https://sepolia.etherscan.io/tx/") + ensTx
+                }
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                View Sepolia transaction
+                View {ensChainId === 1 ? "Ethereum" : "Sepolia"} transaction
               </a>
               <button
                 className="button small ghost"
@@ -534,7 +541,7 @@ export function SettingsView() {
                       method: "POST",
                       body: JSON.stringify({ intentId: ensIntent, txHash: ensTx }),
                     });
-                    notice("Record re-read from Sepolia.");
+                    notice("Record confirmed by an independent ENS read.");
                   })
                 }
               >

@@ -14,6 +14,17 @@ export interface RpContextDTO {
   action: string;
   environment: "production" | "staging" | "sandbox" | "simulated";
 }
+export interface ProofRequestDTO extends RpContextDTO {
+  requestId: string;
+  signal: string;
+}
+export interface ProofInput {
+  payload: unknown;
+  action: string;
+  signal: string;
+  nonce?: string;
+  requireUserPresence?: boolean;
+}
 export interface VerifiedProof {
   /** Decimal string of the 256-bit nullifier, ready for NUMERIC(78,0). */
   nullifier: string;
@@ -37,7 +48,7 @@ export interface AgentIdentity {
 export interface WorldAdapter {
   readonly kind: "simulated" | "live";
   rpContext(action: string): Promise<RpContextDTO>;
-  verifyProof(input: { payload: unknown; action: string; signal: string }): Promise<VerifiedProof>;
+  verifyProof(input: ProofInput): Promise<VerifiedProof>;
   agentAuthorizeUrl(input: {
     approvalId: string;
     nonce: string;
@@ -50,6 +61,7 @@ export function world(): WorldAdapter {
   return isDemo() || previewEns() ? simulatedWorld() : liveWorld();
 }
 export const WORLD_ACTION_TRIP = process.env.WORLD_ACTION_TRIP || "trip-activate";
+export const WORLD_ACTION_APPROVAL = process.env.WORLD_ACTION_APPROVAL || "concierge-approve";
 export function nullifierToDecimal(hex: unknown): string {
   if (typeof hex !== "string" || !/^0x[0-9a-fA-F]{1,64}$/.test(hex))
     throw new AppError("WORLD_VERIFY_FAILED", "The proof did not include a nullifier.", 422);

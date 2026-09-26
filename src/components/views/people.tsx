@@ -23,7 +23,7 @@ export function MemberCard({ member, onConnect }: { member: PublicMember; onConn
       </Link>
       <p className="member-role">{member.role}</p>
       <p className="member-bio">{member.bio}</p>
-      {member.ensName && <span className="ens-label">{member.ensName} · Sepolia</span>}
+      {member.ensName && <span className="ens-label">{member.ensName}</span>}
       {member.tripName && (
         <span className="ens-label badge-inline">
           {member.tripName}
@@ -94,7 +94,7 @@ export function PeopleView({ city }: { city: string }) {
             value={ensName}
             onChange={(event) => setEnsName(event.target.value)}
             placeholder="Find by ENSv2 name"
-            aria-label="ENSv2 Sepolia name"
+            aria-label="ENS name"
             required
           />
           <button className="icon-button" disabled={ensBusy} aria-label="Find member by ENS">

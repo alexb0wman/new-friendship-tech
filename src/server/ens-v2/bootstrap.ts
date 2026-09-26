@@ -11,6 +11,8 @@ import {
   stringToHex,
   toHex,
   zeroAddress,
+  BaseError,
+  ContractFunctionRevertedError,
   type Address,
   type Hex,
 } from "viem";
@@ -20,7 +22,7 @@ import { namehash, normalize } from "viem/ens";
 import { ethRegistrarAbi, factoryAbi, mockUsdcAbi, registryAbi, resolverAbi } from "./abi";
 import { SEPOLIA } from "./addresses";
 import { encodeTextSetter } from "./encode";
-import { CONCIERGE_TEXT_KEYS, ALL_ROLES, OWNER_BITMAP } from "./roles";
+import { CONCIERGE_TEXT_KEYS, ALL_ROLES, OWNER_BITMAP, REGISTRY, RESOLVER } from "./roles";
 import { FAR_FUTURE_EXPIRY, conciergeContext, dnsName, labelId } from "./names";
 
 /**
@@ -108,17 +110,41 @@ export async function bootstrap(options: BootstrapOptions): Promise<BootstrapOut
     throw new Error("ENS_PARENT_NAME must be a second-level .eth name");
   const parentLabel = parent.slice(0, -4);
   const account = privateKeyToAccount(options.operatorKey);
+  if (account.address.toLowerCase() === options.conciergeAddress.toLowerCase())
+    throw new Error("The operator and concierge must use different wallets.");
+  if (options.conciergeAddress.toLowerCase() === zeroAddress)
+    throw new Error("The concierge wallet cannot be the zero address.");
+  const origin = new URL(options.origin);
+  if (origin.protocol !== "https:" || origin.origin !== options.origin)
+    throw new Error("APP_ORIGIN must be a public HTTPS origin without a path or trailing slash.");
   const transport = http(options.rpcUrl, { timeout: 30000 });
   const client = createPublicClient({ chain: sepolia, transport });
   const wallet = createWalletClient({ account, chain: sepolia, transport });
   const chainId = await client.getChainId();
   if (chainId !== sepolia.id) throw new Error("RPC is not Sepolia (chain " + chainId + ")");
+  for (const address of [
+    SEPOLIA.verifiableFactory,
+    SEPOLIA.ethRegistry,
+    SEPOLIA.ethRegistrar,
+    SEPOLIA.permissionedResolverImpl,
+    SEPOLIA.userRegistryImpl,
+  ]) {
+    const code = await client.getCode({ address });
+    if (!code || code === "0x")
+      throw new Error(
+        "ENSv2 contract missing at " + address + ". Recheck the official Sepolia deployment.",
+      );
+  }
   const txs: Record<string, string> = {};
   const log = options.log;
   async function send(label: string, to: Address, data: Hex) {
     await client.call({ account, to, data });
     const hash = await wallet.sendTransaction({ account, chain: sepolia, to, data });
-    const receipt = await client.waitForTransactionReceipt({ hash });
+    const receipt = await client.waitForTransactionReceipt({
+      hash,
+      confirmations: 2,
+      timeout: 180000,
+    });
     if (receipt.status !== "success") throw new Error(label + " reverted: " + hash);
     txs[label] = hash;
     log(label + " " + hash);
@@ -246,6 +272,13 @@ export async function bootstrap(options: BootstrapOptions): Promise<BootstrapOut
       }),
     );
   } else log(parent + " is registered");
+  const canMount = await client.readContract({
+    address: SEPOLIA.ethRegistry,
+    abi: registryAbi,
+    functionName: "hasRoles",
+    args: [labelId(parentLabel), REGISTRY.ROLE_SET_SUBREGISTRY, account.address],
+  });
+  if (!canMount) throw new Error("The operator does not hold the parent name's subregistry role.");
   // 1. App resolver: operator holds every role; the concierge gets two keys later.
   const appResolver = await ensureProxy(
     "appResolver",
@@ -317,7 +350,7 @@ export async function bootstrap(options: BootstrapOptions): Promise<BootstrapOut
         functionName: "getSubregistry",
         args: [label],
       });
-      if (subregistry !== zeroAddress && current.toLowerCase() !== subregistry.toLowerCase())
+      if (current.toLowerCase() !== subregistry.toLowerCase())
         await send(
           label + ".setSubregistry",
           registry,
@@ -325,6 +358,22 @@ export async function bootstrap(options: BootstrapOptions): Promise<BootstrapOut
             abi: registryAbi,
             functionName: "setSubregistry",
             args: [labelId(label), subregistry],
+          }),
+        );
+      const currentResolver = await client.readContract({
+        address: registry,
+        abi: registryAbi,
+        functionName: "getResolver",
+        args: [label],
+      });
+      if (currentResolver.toLowerCase() !== resolver.toLowerCase())
+        await send(
+          label + ".setResolver",
+          registry,
+          encodeFunctionData({
+            abi: registryAbi,
+            functionName: "setResolver",
+            args: [labelId(label), resolver],
           }),
         );
       return;
@@ -426,18 +475,56 @@ export async function bootstrap(options: BootstrapOptions): Promise<BootstrapOut
     log(
       "WARNING: the concierge could write description; the setter grant is not scoped as expected",
     );
-  } catch {
+  } catch (error) {
+    const revert =
+      error instanceof BaseError
+        ? error.walk((cause) => cause instanceof ContractFunctionRevertedError)
+        : undefined;
+    if (
+      !(revert instanceof ContractFunctionRevertedError) ||
+      revert.data?.errorName !== "EACUnauthorizedAccountRoles"
+    )
+      throw error;
     conciergeScoped = true;
-    log("concierge write to description reverts, as intended");
+    log("concierge write to description is denied by the permission contract");
   }
-  await client.simulateContract({
-    address: appResolver,
-    abi: resolverAbi,
-    functionName: "setText",
-    args: [dnsName(conciergeRoot), "friendship.now", "{}"],
-    account: options.conciergeAddress,
-  });
-  log("concierge write to friendship.now simulates fine");
+  if (!conciergeScoped) throw new Error("The concierge has excessive description permissions.");
+  // A failed RPC call is never evidence of restricted permissions. Check every root role too.
+  for (const role of Object.values(RESOLVER)) {
+    for (const bit of [role, role << 128n]) {
+      const held = await client.readContract({
+        address: appResolver,
+        abi: resolverAbi,
+        functionName: "hasRootRoles",
+        args: [bit, options.conciergeAddress],
+      });
+      if (held) throw new Error("The concierge has unexpected root resolver permissions.");
+    }
+  }
+  for (const key of CONCIERGE_TEXT_KEYS) {
+    await client.simulateContract({
+      address: appResolver,
+      abi: resolverAbi,
+      functionName: "setText",
+      args: [dnsName(conciergeRoot), key, "{}"],
+      account: options.conciergeAddress,
+    });
+    log("concierge write to " + key + " simulates fine");
+  }
+  const [resolvedAddress, context, endpoint, alias] = await Promise.all([
+    client.getEnsAddress({ name: conciergeRoot }),
+    client.getEnsText({ name: conciergeRoot, key: "agent-context" }),
+    client.getEnsText({ name: conciergeRoot, key: "agent-endpoint[mcp]" }),
+    client.getEnsAddress({ name: "concierge.tokyo." + parent }),
+  ]);
+  if (
+    resolvedAddress?.toLowerCase() !== options.conciergeAddress.toLowerCase() ||
+    alias?.toLowerCase() !== options.conciergeAddress.toLowerCase() ||
+    context !== conciergeContext(options.origin) ||
+    endpoint !== options.origin + "/api/mcp"
+  )
+    throw new Error("The deployed concierge records did not match independent ENS reads.");
+  log("concierge records and city alias verified through the Universal Resolver");
   return {
     at: new Date().toISOString(),
     chainId,

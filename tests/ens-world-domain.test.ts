@@ -26,7 +26,12 @@ import {
 } from "@/server/ens-v2/names";
 import { chain, resetSimulatedChain, SIM } from "@/server/ens-v2/chain";
 import { assertChainWriteProof } from "@/server/ens-v2/proof";
-import { enqueueEnsJob, registerEnsJobHandler, runEnsWorkerOnce } from "@/server/ens-v2/jobs";
+import {
+  enqueueEnsJob,
+  registerEnsJobHandler,
+  runEnsWorkerOnce,
+  ensJobSubmission,
+} from "@/server/ens-v2/jobs";
 
 beforeAll(async () => {
   await getDb();
@@ -265,5 +270,35 @@ describe("ENS job worker", () => {
     expect(row.runAfter.getTime()).toBeGreaterThan(Date.now() + 5000);
     expect(row.leaseOwner).toBeNull();
     expect(await runEnsWorkerOnce()).toBe(false);
+  });
+  it("reuses a persisted transaction after a pending receipt instead of broadcasting again", async () => {
+    let broadcasts = 0;
+    let checks = 0;
+    registerEnsJobHandler("record.set", async () => {
+      const submission = await ensJobSubmission("test.transaction", async () => {
+        broadcasts++;
+        return {
+          hash: "0x" + "a".repeat(64),
+          from: SIM.operator,
+          to: SIM.appResolver,
+          calldata: "0x1234",
+        };
+      });
+      if (++checks === 1) throw new AppError("PENDING", "Receipt not mined yet.", 409, true);
+      return { txHash: submission.hash };
+    });
+    const id = await enqueue("record.set");
+    await runEnsWorkerOnce();
+    const db = await getDb();
+    await db
+      .update(s.ensJobs)
+      .set({ runAfter: new Date(0) })
+      .where(eq(s.ensJobs.id, id));
+    await runEnsWorkerOnce();
+    const [finished] = await db.select().from(s.ensJobs).where(eq(s.ensJobs.id, id));
+    expect(finished.status).toBe("done");
+    expect(broadcasts).toBe(1);
+    expect(checks).toBe(2);
+    expect(finished.txHash).toBe("0x" + "a".repeat(64));
   });
 });

@@ -1,4 +1,6 @@
 import { normalize } from "viem/ens";
+import { zeroAddress } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
 import { isDemo, previewEns } from "@/server/config";
 import { AppError } from "@/server/errors";
 
@@ -73,6 +75,23 @@ export function ensWorldEnv(): EnsWorldEnv | null {
   const address = /^0x[0-9a-fA-F]{40}$/;
   if (![parentRegistry, cityRegistryTokyo, appResolver].every((value) => address.test(value)))
     return null;
+  if (
+    [parentRegistry, cityRegistryTokyo, appResolver].some(
+      (value) => value.toLowerCase() === zeroAddress,
+    )
+  )
+    return null;
+  try {
+    const rpc = new URL(rpcUrl);
+    if (!["http:", "https:"].includes(rpc.protocol)) return null;
+    if (process.env.NODE_ENV === "production" && rpc.protocol !== "https:") return null;
+    const operator = privateKeyToAccount(operatorKey as `0x${string}`);
+    const concierge = privateKeyToAccount(conciergeKey as `0x${string}`);
+    if (operator.address === concierge.address) return null;
+    parentName();
+  } catch {
+    return null;
+  }
   return {
     rpcUrl,
     parentRegistry: parentRegistry.toLowerCase(),
@@ -84,11 +103,11 @@ export function ensWorldEnv(): EnsWorldEnv | null {
 }
 /** Sepolia explorer links. Null in demo mode, where nothing exists on a public chain. */
 export function explorerName(name: string): string | null {
-  if (isDemo()) return null;
+  if (isDemo() || previewEns()) return null;
   const template = process.env.ENS_EXPLORER_NAME_URL ?? "https://app.ens.dev/{name}";
   return template.replace("{name}", encodeURIComponent(name));
 }
 export function explorerTx(hash: string | null | undefined): string | null {
-  if (!hash || isDemo()) return null;
+  if (!hash || isDemo() || previewEns()) return null;
   return "https://sepolia.etherscan.io/tx/" + hash;
 }

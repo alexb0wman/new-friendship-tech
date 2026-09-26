@@ -28,7 +28,6 @@ export interface RuntimeConfig {
     simulated: boolean;
   };
   ensParent: string | null;
-  splitOgPayEnabled: boolean;
   origin: string;
 }
 export class ApiError extends Error {

@@ -19,6 +19,7 @@ import { checkoutStatus } from "./payments/adapter";
 import * as payments from "./payments/service";
 import * as ens from "./ens";
 import * as ensWorld from "./ens-world/router";
+import { integrationReadiness } from "./integration-readiness";
 
 function ok(
   data: unknown,
@@ -236,7 +237,7 @@ export async function handleApi(request: Request): Promise<Response> {
 
     if (/^invoices\/[^/]+\/submit$/.test(path) && method === "POST") {
       const data = z
-        .object({ sourceTx: txHash, providerOrderId: z.string().min(1).max(160) })
+        .object({ sourceTx: txHash, providerOrderId: z.string().min(1).max(160).optional() })
         .strict()
         .parse(await jsonBody(request));
       return ok(
@@ -289,6 +290,8 @@ export async function handleApi(request: Request): Promise<Response> {
     }
     if (path.startsWith("admin")) {
       admin.requireAdmin(actor);
+      if (path === "admin/integrations" && method === "GET")
+        return ok(integrationReadiness(), correlationId);
       if (path === "admin" && method === "GET")
         return ok(await admin.adminOverview(actor), correlationId);
       if (path === "admin/content" && method === "POST")

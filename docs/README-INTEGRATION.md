@@ -1,3 +1,5 @@
+> Historical integration handoff. The current implementation and production activation requirements are in [LIVE-LAUNCH-SPEC.md](LIVE-LAUNCH-SPEC.md) and [INTEGRATIONS.md](INTEGRATIONS.md). Production approvals now use IDKit, not sandbox OIDC.
+
 # ENSv2 + World ID drop for New Friendship Tech
 
 Built 2026-09-26 for ETHGlobal Tokyo 2026, on top of `main` at `775b48f` (the upstream head that day). Target prizes: ENS "Best Use of ENSv2", World "Best Use of IDKit", World "Best Use of World ID for Agents".

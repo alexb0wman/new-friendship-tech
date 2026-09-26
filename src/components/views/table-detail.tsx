@@ -1,8 +1,8 @@
 "use client";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { BadgeCheck, ExternalLink } from "lucide-react";
-import { encodeFunctionData, erc20Abi, type Address, type EIP1193Provider, type Hex } from "viem";
+import { numberToHex, type Address, type Hex, type EIP1193Provider } from "viem";
 import { useResource, useSession } from "../session";
 import { Loading, AccessState, Avatar, Tag, Arrow, ErrorBox, Eyebrow, dateLabel } from "../ui";
 import { useApprovalFlow, approvalErrorCopy } from "../approval-modal";
@@ -12,7 +12,7 @@ import type { GatheringDetail } from "@/lib/types";
 const money = (cents: number) => "$" + (cents / 100).toFixed(2);
 /** One table: who is at it (names), the host's controls, the split, and the record as written on chain. */
 export function TableDetailView({ id, city }: { id: string; city: string }) {
-  const { api, me, notice, config, walletProvider } = useSession();
+  const { api, notice, config, walletProvider } = useSession();
   const { data, error, loading, reload } = useResource<GatheringDetail>("gatherings/" + id);
   const [total, setTotal] = useState("");
   const [busy, setBusy] = useState("");
@@ -154,7 +154,7 @@ export function TableDetailView({ id, city }: { id: string; city: string }) {
                   Close the table
                 </button>
               )}
-              {table.status !== "cancelled" && (
+              {table.status !== "cancelled" && table.split.status === "none" && (
                 <button
                   className="button ghost small"
                   disabled={!!busy}
@@ -172,6 +172,7 @@ export function TableDetailView({ id, city }: { id: string; city: string }) {
               )}
             </div>
           ) : (
+            table.split.status === "none" &&
             (table.myStatus === "approved" || table.myStatus === "requested") && (
               <button
                 className="button ghost small"
@@ -257,7 +258,6 @@ export function TableDetailView({ id, city }: { id: string; city: string }) {
                   tableId={table.id}
                   city={city}
                   demo={!!config?.demo}
-                  ogPay={!!config?.splitOgPayEnabled}
                   onPaid={reload}
                   getProvider={async () => {
                     const next = provider ?? (await walletProvider());
@@ -320,7 +320,6 @@ function PaySection({
   tableId,
   city,
   demo,
-  ogPay,
   onPaid,
   getProvider,
 }: {
@@ -328,13 +327,26 @@ function PaySection({
   tableId: string;
   city: string;
   demo: boolean;
-  ogPay: boolean;
   onPaid: () => Promise<void>;
   getProvider: () => Promise<EIP1193Provider>;
 }) {
-  const { api, notice } = useSession();
+  const { api, notice, me } = useSession();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const [recoveryHash, setRecoveryHash] = useState("");
+  const [sentHash, setSentHash] = useState("");
+  const recoveryKey = "split-payment:" + tableId + ":" + (me?.user.id ?? "");
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem(recoveryKey);
+      if (stored && /^0x[0-9a-fA-F]{64}$/.test(stored)) {
+        setSentHash(stored);
+        setRecoveryHash(stored);
+      }
+    } catch {
+      /* Wallet history also provides transaction recovery. */
+    }
+  }, [recoveryKey]);
   async function report(txHash: string) {
     await api("gatherings/" + tableId + "/split/paid", {
       method: "POST",
@@ -356,22 +368,50 @@ function PaySection({
         return;
       }
       const provider = await getProvider();
+      if (mine.chainId == null || mine.chainId === 0)
+        throw new Error("This split requires review before mainnet payment.");
+      const [from] = (await provider.request({ method: "eth_requestAccounts" })) as string[];
+      if (!from) throw new Error("Select your linked wallet first.");
+      const prepared = await api<{
+        chainId: number;
+        from: Address;
+        to: Address;
+        data: Hex;
+        value: Hex;
+      }>("gatherings/" + tableId + "/split/prepare", {
+        method: "POST",
+        body: JSON.stringify({ payer: from }),
+      });
+      const chainId = numberToHex(prepared.chainId);
       await provider.request({
         method: "wallet_switchEthereumChain",
-        params: [{ chainId: "0xaa36a7" }],
+        params: [{ chainId }],
       });
-      const [from] = (await provider.request({ method: "eth_accounts" })) as string[];
-      const data = encodeFunctionData({
-        abi: erc20Abi,
-        functionName: "transfer",
-        args: [mine.payTo as Address, BigInt(mine.amountBaseUnits)],
-      });
+      const activeChain = await provider.request({ method: "eth_chainId" });
+      if (BigInt(String(activeChain)) !== BigInt(prepared.chainId))
+        throw new Error("Wallet is on the wrong network.");
+      const [selected] = (await provider.request({ method: "eth_accounts" })) as string[];
+      if (selected?.toLowerCase() !== prepared.from.toLowerCase())
+        throw new Error("Wallet changed. Select the wallet prepared for this share.");
       const hash = await provider.request({
         method: "eth_sendTransaction",
         params: [
-          { from: from as Address, to: mine.token as Address, data, chainId: "0xaa36a7" as Hex },
+          {
+            from: prepared.from,
+            to: prepared.to,
+            data: prepared.data,
+            value: prepared.value,
+            chainId,
+          },
         ],
       });
+      setRecoveryHash(String(hash));
+      setSentHash(String(hash));
+      try {
+        sessionStorage.setItem(recoveryKey, String(hash));
+      } catch {
+        /* Retain in component state. */
+      }
       await report(String(hash));
     } catch (caught) {
       setError(caught instanceof Error ? caught : new Error("Payment did not go through."));
@@ -385,26 +425,90 @@ function PaySection({
         Your share: <strong>{money(mine.shareCents)}</strong>
       </p>
       <p className="muted small mono">
-        pay to {mine.payToName} · {mine.payTo.slice(0, 10)}… · {mine.amountBaseUnits} base units of
-        USDC
+        Pay {mine.payToName} · {mine.payTo} · USDC on {mine.chainName}
       </p>
+      {!demo && (
+        <p className="muted small">
+          Your wallet signs a direct USDC transfer. You need USDC and ETH for network fees on{" "}
+          {mine.chainName}. Settlement waits for a finalized block.
+        </p>
+      )}
       <ErrorBox error={error} />
       {mine.verified ? (
         <Tag lime>
           <BadgeCheck size={12} /> Paid and verified
         </Tag>
-      ) : mine.paidTx ? (
-        <p className="muted small">Reported {mine.paidTx.slice(0, 12)}…, verifying on chain.</p>
-      ) : ogPay && !demo ? (
-        <div className="note">
-          SPLIT_OGPAY_ENABLED is on, but 0G Pay is not mounted in this build: the SDK needs the
-          ethers package, which this repository does not ship. Pay with the USDC transfer below or
-          mount OgPayTrigger here after adding ethers (docs/ENS-WORLD-DESIGN.md, section 2.9).
+      ) : mine.paidTx || sentHash ? (
+        <div>
+          <p className="muted small">
+            {mine.errorCode && mine.errorCode !== "PENDING"
+              ? "This transfer has not satisfied your share. Check its network, recipient, amount, and paying wallet before reporting another transaction."
+              : "Transfer " +
+                (mine.paidTx ?? sentHash).slice(0, 12) +
+                "… is awaiting verification. Do not pay again."}
+          </p>
+          <button
+            className="button ghost small"
+            disabled={busy}
+            onClick={() => {
+              setBusy(true);
+              void report(mine.paidTx ?? sentHash)
+                .catch((caught) =>
+                  setError(
+                    caught instanceof Error ? caught : new Error("Could not refresh payment."),
+                  ),
+                )
+                .finally(() => setBusy(false));
+            }}
+          >
+            Check settlement
+          </button>
         </div>
       ) : (
-        <button className="button lime" disabled={busy} onClick={() => void pay()}>
-          {busy ? "Paying…" : demo ? "Pay (simulated USDC)" : "Pay in USDC on Sepolia"} <Arrow />
-        </button>
+        <>
+          <button
+            className="button lime"
+            disabled={busy || mine.chainId == null}
+            onClick={() => void pay()}
+          >
+            {busy ? "Paying…" : demo ? "Pay (simulated USDC)" : "Pay USDC on " + mine.chainName}{" "}
+            <Arrow />
+          </button>
+        </>
+      )}
+      {mine.explorerTx && (
+        <a className="text-link" href={mine.explorerTx} target="_blank" rel="noopener noreferrer">
+          View payment <ExternalLink size={13} />
+        </a>
+      )}
+      {!mine.verified && !demo && (
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            setBusy(true);
+            setError(null);
+            void report(recoveryHash)
+              .catch((caught) =>
+                setError(caught instanceof Error ? caught : new Error("Could not report payment.")),
+              )
+              .finally(() => setBusy(false));
+          }}
+        >
+          <label className="field">
+            Already sent this payment? Recover with its transaction hash.
+            <input
+              className="mono"
+              value={recoveryHash}
+              onChange={(event) => setRecoveryHash(event.target.value)}
+              placeholder="0x…"
+              pattern="0x[0-9a-fA-F]{64}"
+              required
+            />
+          </label>
+          <button className="button ghost small" disabled={busy || !recoveryHash}>
+            Verify existing transfer
+          </button>
+        </form>
       )}
       <Link href={"/" + city + "/tables"} className="text-link muted">
         Back to tables

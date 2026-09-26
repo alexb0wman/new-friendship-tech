@@ -38,7 +38,9 @@ export function assertChainWriteProof(input: {
     const matches =
       wanted === ""
         ? seen === null || seen === ""
-        : (seen ?? "").toLowerCase() === wanted.toLowerCase();
+        : record.type === "text"
+          ? seen === wanted
+          : (seen ?? "").toLowerCase() === wanted.toLowerCase();
     invariant(
       matches,
       "ENS_RECORD_MISMATCH",

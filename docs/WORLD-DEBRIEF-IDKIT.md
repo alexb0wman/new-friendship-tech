@@ -1,3 +1,5 @@
+> Historical integration handoff. The current implementation and production activation requirements are in [LIVE-LAUNCH-SPEC.md](LIVE-LAUNCH-SPEC.md) and [INTEGRATIONS.md](INTEGRATIONS.md). Production approvals now use IDKit, not sandbox OIDC.
+
 # World ID integration debrief: IDKit at trip activation
 
 Required by the "Best Use of IDKit" prize. Written while building; the two timing figures are filled in from the first live run against the World simulator and staging.
