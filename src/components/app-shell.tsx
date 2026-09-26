@@ -19,75 +19,43 @@ export function AppShell({ children, bleed = false }: { children: ReactNode; ble
   const [openBucket, setOpenBucket] = useState<string | null>(null);
   const buckets = [
     {
-      id: "connect",
-      label: "Connect",
-      short: "Connect",
-      line: "People, introductions, and the desk.",
-      items: [
-        ["/network", "People", "Search members and browse the register."],
-        ["/atlas", "Atlas", "Trace a warm path you are allowed to see."],
-        ["/introductions", "Intros", "Send a request, or answer one waiting for you."],
-        ["/intelligence", "Intelligence", "The wire, filtered by topic."],
-        ["/read", "Read", "Longer pieces from the same desk."],
-        ["/companies", "Companies", "Affiliations members have written themselves."],
-        ["/capital", "Capital", "Founders and investors, not a deal room."],
-        ["/cities", "Cities", "Where members actually gather."],
-        ["/standings", "Standings", "Recorded connections. Not a score of worth."],
-        ["/invite-tree", "Invite Tree", "Who referred whom, when that is known."],
-      ],
-    },
-    {
-      id: "events",
-      label: "Events",
-      line: "Events, member tables, and short notice plans.",
-      items: [
-        ["/" + citySlug + "/events", "Events", "Save a listing. A save is not a ticket."],
-        ["/where-to-be", "Where to be", "The week in the city you selected."],
-        ["/" + citySlug + "/now", "Now", "A plan that expires on its own."],
-        [
-          "/" + citySlug + "/tables",
-          "Dine",
-          "Small meals. Every seat is approved.",
-        ],
-      ],
-    },
-    {
       id: "travel",
       label: "Travel",
-      line: "Saved places and guides for each city.",
+      line: "The city, the week, and the table.",
       items: [
         ["/" + citySlug, "Places", "Restaurants, galleries, and rooms we chose."],
-        ["/settings#trip", "Your trip", "A name that expires when you leave. World ID required."],
-        ["/travel", "Guides", "Short city stories, labeled as such."],
+        ["/" + citySlug + "/events", "Events", "Save a listing. A save is not a ticket."],
+        ["/where-to-be", "Where to be", "The week in the city you selected."],
+        ["/" + citySlug + "/tables", "Dinners", "Small meals. Every seat is approved."],
+        ["/" + citySlug + "/now", "Plans", "Short notice. They expire on their own."],
+        ["/travel", "Guides", "How a stay fits together."],
         ["/cities", "Cities", "Every published city."],
       ],
     },
     {
       id: "culture",
       label: "Culture",
-      line: "Exhibitions, playlists, and opportunities.",
+      line: "Art, music, and the rest of the desk.",
       items: [
-        ["/art", "Art", "Creators, exhibitions, and culture stories."],
+        ["/art", "Art", "Creators, exhibitions, and stories."],
         ["/music", "Music", "Playlists, artists, and shows."],
         ["/tech", "Tech", "Opportunities, companies, and people."],
+        ["/intelligence", "Intelligence", "The wire, filtered by topic."],
+        ["/read", "Read", "Longer pieces from the same desk."],
       ],
     },
     {
-      id: "membership",
-      label: "Membership",
-      short: "Member",
-      line: "One plan, every city. Terms and trust.",
+      id: "network",
+      label: "Network",
+      line: "People, introductions, and who is in town.",
       items: [
-        ["/membership", "Membership", "All Access, $39 a month, every city."],
-        ["/onboarding", "Join", "Create an account and set your profile."],
-        ["/trust", "Trust", "What a label means, and what it does not."],
-        ["/policy", "Member policy", "Consent, blocks, and reports."],
-        ...(me?.user.admin
-          ? [
-              ["/admin", "Admin", "Add or edit any entry."],
-              ["/operations", "Operations", "Reports and the review queue."],
-            ]
-          : []),
+        ["/network", "People", "Search members and browse the register."],
+        ["/introductions", "Intros", "Send a request, or answer one waiting for you."],
+        ["/atlas", "Atlas", "Trace a warm path you are allowed to see."],
+        ["/companies", "Companies", "Affiliations members have written themselves."],
+        ["/capital", "Capital", "Founders and investors, not a deal room."],
+        ["/standings", "Standings", "Recorded connections. Not a score of worth."],
+        ["/invite-tree", "Invite Tree", "Who referred whom, when that is known."],
       ],
     },
   ];
@@ -162,6 +130,11 @@ export function AppShell({ children, bleed = false }: { children: ReactNode; ble
           ))}
         </nav>
         <div className="header-actions">
+          {!me && (
+            <button className="button small lime nav-cta" onClick={() => void login()}>
+              Join Waitlist
+            </button>
+          )}
           {me ? (
             <>
               <Link className="icon-button" href="/requests" aria-label="Connection requests">
@@ -239,9 +212,14 @@ export function AppShell({ children, bleed = false }: { children: ReactNode; ble
             aria-expanded={openBucket === bucket.id}
             onClick={() => setOpenBucket(openBucket === bucket.id ? null : bucket.id)}
           >
-            <span>{bucket.short ?? bucket.label}</span>
+            <span>{bucket.label}</span>
           </button>
         ))}
+        {!me && (
+          <button type="button" className="join" onClick={() => void login()}>
+            <span>Join</span>
+          </button>
+        )}
       </nav>
       <Modal open={accountOpen} title="Your account" onClose={() => setAccountOpen(false)}>
         {me && (

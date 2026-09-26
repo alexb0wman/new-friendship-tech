@@ -7,38 +7,26 @@ import { PreviewList, Reveal, SplitWords, type PreviewItem } from "@/components/
 const flows: PreviewItem[] = [
   {
     href: "/tokyo",
-    title: "Places",
+    title: "See",
     line: "Restaurants, galleries, coffee, bars, and rooms we chose.",
     photo: "/photos/places.webp",
   },
   {
-    href: "/tokyo/tables",
-    title: "Dine",
-    line: "Small dinners. Every seat is approved.",
-    photo: "/photos/tables.webp",
-  },
-  {
-    href: "/settings#trip",
-    title: "Your trip",
-    line: "An ENS name for your stay, verified with World ID.",
+    href: "/travel",
+    title: "Explore",
+    line: "City guides for a stay. Where the days actually go.",
     photo: "/photos/trip.webp",
   },
   {
-    href: "/network",
-    title: "Connect",
-    line: "The member directory and connection requests.",
-    photo: "/photos/night.webp",
-  },
-  {
     href: "/tokyo/now",
-    title: "Now",
+    title: "Meet",
     line: "Short notice plans. They expire within hours.",
     photo: "/photos/now.webp",
   },
   {
     href: "/art",
-    title: "Culture",
-    line: "Exhibitions, playlists, and opportunities.",
+    title: "Discover",
+    line: "Art, music, and what the desk is paying attention to.",
     photo: "/photos/culture.webp",
   },
 ];

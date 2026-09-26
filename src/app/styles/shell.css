@@ -284,6 +284,10 @@
     color: #050505;
     background: var(--lime);
   }
+  .bottom-nav button.join {
+    color: #050505;
+    background: var(--lime);
+  }
   .bottom-nav button[data-here]:not(.active) {
     color: var(--text);
   }
