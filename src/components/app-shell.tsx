@@ -1,21 +1,29 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowUpRight, Settings, LogOut, ChevronDown, Bell } from "lucide-react";
+import { ArrowUpRight, LogOut, ChevronDown, Bell, Check } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { useResource, useSession } from "./session";
-import { Avatar, Modal } from "./ui";
+import { useSession } from "./session";
+import { Avatar, Modal, Loading, ErrorBox } from "./ui";
 import { ConciergeDrawer } from "./concierge-drawer";
-import type { City } from "@/lib/types";
+import { useCitySelection } from "./city-selection";
+import { cityDestination } from "@/lib/city-navigation";
 
 export function AppShell({ children, bleed = false }: { children: ReactNode; bleed?: boolean }) {
   const pathname = usePathname(),
-    { me, config, login, logout, switchDemo, notice } = useSession();
+    { me, config, login, logout, switchDemo } = useSession();
   const [accountOpen, setAccountOpen] = useState(false),
     [cityOpen, setCityOpen] = useState(false);
-  const { data: cityData } = useResource<{ items: City[] }>("cities");
-  const citySlug =
-    cityData?.items.find((city) => pathname.startsWith("/" + city.slug))?.slug ?? "tokyo";
+  const {
+    city,
+    citySlug,
+    cities,
+    loading: citiesLoading,
+    error: citiesError,
+    reload: reloadCities,
+    selectCity,
+  } = useCitySelection();
+  const cityLink = (section = "") => (citySlug ? "/" + citySlug + section : "/cities");
   const [openBucket, setOpenBucket] = useState<string | null>(null);
   const buckets = [
     {
@@ -23,11 +31,11 @@ export function AppShell({ children, bleed = false }: { children: ReactNode; ble
       label: "Travel",
       line: "The city, the week, and the table.",
       items: [
-        ["/" + citySlug, "Places", "Restaurants, galleries, and rooms we chose."],
-        ["/" + citySlug + "/events", "Events", "Save a listing. A save is not a ticket."],
+        [cityLink(), "Places", "Restaurants, galleries, and rooms we chose."],
+        [cityLink("/events"), "Events", "Save a listing. A save is not a ticket."],
         ["/where-to-be", "Where to be", "The week in the city you selected."],
-        ["/" + citySlug + "/tables", "Dinners", "Small meals. Every seat is approved."],
-        ["/" + citySlug + "/now", "Plans", "Short notice. They expire on their own."],
+        [cityLink("/tables"), "Dinners", "Small meals. Every seat is approved."],
+        [cityLink("/now"), "Plans", "Short notice. They expire on their own."],
         ["/travel", "Guides", "How a stay fits together."],
         ["/cities", "Cities", "Every published city."],
       ],
@@ -65,7 +73,11 @@ export function AppShell({ children, bleed = false }: { children: ReactNode; ble
     .flatMap((bucket) => bucket.items.map(([href]) => [bucket.id, href.split("#")[0]] as const))
     .filter(([, href]) => pathname === href || pathname.startsWith(href + "/"))
     .sort((a, b) => b[1].length - a[1].length)[0]?.[0];
-  useEffect(() => setOpenBucket(null), [pathname]);
+  useEffect(() => {
+    setOpenBucket(null);
+    setCityOpen(false);
+    setAccountOpen(false);
+  }, [pathname]);
   // Anchor the menu to the header's real bottom edge (the demo bar shifts it).
   const headerRef = useRef<HTMLElement>(null),
     [menuTop, setMenuTop] = useState(80);
@@ -107,12 +119,20 @@ export function AppShell({ children, bleed = false }: { children: ReactNode; ble
         <Link className="wordmark" href="/">
           new friendship
           <br />
-          <strong>
-            tech
-          </strong>
+          <strong>tech</strong>
         </Link>
-        <button className="city-switch" onClick={() => setCityOpen(true)}>
-          {cityData?.items.find((city) => city.slug === citySlug)?.name ?? "Tokyo"}
+        <button
+          type="button"
+          className="city-switch"
+          aria-label="Choose city"
+          aria-haspopup="dialog"
+          aria-expanded={cityOpen}
+          onClick={() => {
+            setOpenBucket(null);
+            setCityOpen(true);
+          }}
+        >
+          {city?.name ?? "Select city"}
           <ChevronDown size={14} />
         </button>
         <nav className="desktop-nav" aria-label="Main navigation">
@@ -160,11 +180,12 @@ export function AppShell({ children, bleed = false }: { children: ReactNode; ble
           {children}
         </div>
       </main>
-      {me && <ConciergeDrawer city={citySlug} />}
+      {me && citySlug && <ConciergeDrawer city={citySlug} />}
       <footer className="app-footer">
         <span>New Friendship Tech, presented by Urconduit.</span>
         <span>
-          Tokyo · <Link href="/privacy">Privacy</Link> · <Link href="/terms">Terms</Link>
+          {city ? city.name + " · " : ""}
+          <Link href="/privacy">Privacy</Link> · <Link href="/terms">Terms</Link>
         </span>
       </footer>
       {current && (
@@ -188,7 +209,7 @@ export function AppShell({ children, bleed = false }: { children: ReactNode; ble
             <div className="mega-grid">
               {current.items.map(([href, label, detail], index) => (
                 <Link
-                  key={href}
+                  key={href + label}
                   href={href}
                   onClick={() => setOpenBucket(null)}
                   style={{ ["--i" as string]: index }}
@@ -260,15 +281,39 @@ export function AppShell({ children, bleed = false }: { children: ReactNode; ble
       </Modal>
       <Modal open={cityOpen} title="Where are you?" onClose={() => setCityOpen(false)}>
         <p className="muted">One membership covers every published city.</p>
-        <div className="menu-list">
-          {cityData?.items.map((city) => (
-            <Link key={city.slug} href={"/" + city.slug} onClick={() => setCityOpen(false)}>
-              {city.name}
-              <ArrowUpRight size={16} />
-            </Link>
-          ))}
-        </div>
-
+        {citiesLoading ? (
+          <Loading />
+        ) : citiesError ? (
+          <div>
+            <ErrorBox error={citiesError} />
+            <button className="button ghost" type="button" onClick={() => void reloadCities()}>
+              Retry cities
+            </button>
+          </div>
+        ) : cities.length ? (
+          <div className="menu-list">
+            {cities.map((item) => (
+              <Link
+                key={item.slug}
+                href={cityDestination(pathname, citySlug, item.slug)}
+                aria-current={item.slug === citySlug ? "true" : undefined}
+                onClick={() => {
+                  selectCity(item.slug);
+                  setCityOpen(false);
+                }}
+              >
+                {item.name}
+                {item.slug === citySlug ? (
+                  <Check size={16} aria-label="Selected" />
+                ) : (
+                  <ArrowUpRight size={16} />
+                )}
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <p role="status">No cities are published yet. Please check back soon.</p>
+        )}
       </Modal>
     </div>
   );

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { Bookmark, ArrowUpRight, Search } from "lucide-react";
 import { useResource, useSession } from "../session";
+import { useCitySelection } from "../city-selection";
 import { Eyebrow, Loading, Empty, ErrorBox, Tag } from "../ui";
 import type { ContentItem, ContentSection, ContentKind } from "@/lib/types";
 
@@ -164,6 +165,7 @@ export function ChannelView({ section }: { section: ContentSection }) {
 }
 
 export function TravelChannelView() {
+  const { citySlug } = useCitySelection();
   const { me } = useSession();
   const [query, setQuery] = useState("");
   const params = new URLSearchParams({ section: "travel" });
@@ -186,10 +188,10 @@ export function TravelChannelView() {
           </h1>
           <p>{data?.total ?? ""} guides, plus 1,836 saved places across ten cities.</p>
           <div className="hero-pills">
-            <Link href="/tokyo">
+            <Link href={citySlug ? "/" + citySlug : "/cities"}>
               Browse places <ArrowUpRight size={14} />
             </Link>
-            <Link href="/tokyo/events">
+            <Link href={citySlug ? "/" + citySlug + "/events" : "/cities"}>
               What is on <ArrowUpRight size={14} />
             </Link>
           </div>

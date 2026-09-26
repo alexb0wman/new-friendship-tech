@@ -31,7 +31,7 @@ Do not set `NODE_ENV=production` for the demo. The server refuses this combinati
 
 - Marketing homepage and responsive app, including desktop navigation, mobile bottom navigation, filters, dialogs, loading/error/empty states, reduced motion and keyboard focus styles.
 - Tokyo preview/full catalog with server-side membership gating, categories, search, neighborhood filters and explainable preference ranking.
-- City-independent All Access: **$19 for 30 days**, manual renewal, all published cities included. Ten new connection requests per current access period. No city passes or feature tiers.
+- City-independent All Access: **$39 for 30 days**, manual renewal, all published cities included. Ten new connection requests per current access period. No city passes or feature tiers.
 - Profiles and onboarding; opt-in discoverability; member directory; immutable internal account IDs with separately linked wallets and names.
 - Private connection requests, reciprocal-request prevention, acceptance/decline/cancel, per-period quota, blocking, reporting and suspension.
 - Mutual-contact reveal after acceptance and sharing consent. Production contact encryption uses envelope encryption with Google Cloud KMS. Demo encryption is explicitly local only.

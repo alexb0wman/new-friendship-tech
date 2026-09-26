@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useResource, useSession } from "../session";
 import { PageTitle, Loading, AccessState, Tag, Arrow, Modal, ErrorBox } from "../ui";
 import type { ContentItem, Invoice } from "@/lib/types";
+import { formatUsd } from "@/lib/money";
 interface AdminData {
   places: {
     id: string;
@@ -70,8 +71,7 @@ export function AdminView() {
     event.preventDefault();
     setFormError(null);
     try {
-      if (mode === "content")
-        await api("admin/content", { method: "POST", body: contentJson });
+      if (mode === "content") await api("admin/content", { method: "POST", body: contentJson });
       else await api("admin/places", { method: "POST", body: json });
       setOpen(false);
       await reload();
@@ -291,7 +291,8 @@ export function AdminView() {
                     <div className="admin-row" key={invoice.id}>
                       <div>
                         <strong>
-                          {invoice.demo ? "Demo purchase" : "Membership purchase"} · $19
+                          {invoice.demo ? "Demo purchase" : "Membership purchase"} ·{" "}
+                          {formatUsd(invoice.usdCents)}
                         </strong>
                         <p className="muted small break-all">{invoice.id}</p>
                       </div>

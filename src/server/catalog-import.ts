@@ -52,7 +52,10 @@ export async function loadSavedCatalog(existing?: Database) {
     };
   });
   for (let i = 0; i < values.length; i += 200) {
-    await db.insert(s.places).values(values.slice(i, i + 200)).onConflictDoNothing();
+    await db
+      .insert(s.places)
+      .values(values.slice(i, i + 200))
+      .onConflictDoNothing();
   }
   return { cities: catalog.cities.length, places: catalog.places.length };
 }

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import { Providers } from "@/components/session";
+import { CityProvider } from "@/components/city-selection";
 import "./globals.css";
 import "./styles/motion.css";
 import "./styles/shell.css";
@@ -36,7 +37,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <a className="skip-link" href="#main">
           Skip to content
         </a>
-        <Providers>{children}</Providers>
+        <Providers>
+          <CityProvider>{children}</CityProvider>
+        </Providers>
       </body>
     </html>
   );

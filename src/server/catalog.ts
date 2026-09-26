@@ -38,7 +38,7 @@ export function rankPlaces(
 function redact(place: Place): Place {
   return {
     ...place,
-    name: "", 
+    name: "",
     note: "",
     mapUrl: "",
     sourceUrl: "",
@@ -203,11 +203,7 @@ export async function setSave(userId: string, data: z.infer<typeof saveSchema>) 
         await tx
           .delete(s.saves)
           .where(and(eq(s.saves.userId, userId), eq(s.saves.contentId, data.id)));
-      else
-        await tx
-          .insert(s.saves)
-          .values({ userId, contentId: data.id })
-          .onConflictDoNothing();
+      else await tx.insert(s.saves).values({ userId, contentId: data.id }).onConflictDoNothing();
     });
     return;
   }
@@ -294,10 +290,7 @@ export async function savedItems(userId: string) {
             .select()
             .from(s.contentItems)
             .where(
-              and(
-                inArray(s.contentItems.id, contentIds),
-                eq(s.contentItems.status, "published"),
-              ),
+              and(inArray(s.contentItems.id, contentIds), eq(s.contentItems.status, "published")),
             )
         ).map((row) => ({
           id: row.id,

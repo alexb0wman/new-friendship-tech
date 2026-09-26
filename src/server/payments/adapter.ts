@@ -1,5 +1,6 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import { isDemo, config } from "@/server/config";
+import { PLAN } from "@/lib/constants";
 import { AppError, invariant } from "@/server/errors";
 import type { Obligation, SettlementEvidence } from "./verification";
 import {
@@ -231,8 +232,7 @@ export function checkoutStatus() {
     return {
       enabled: true,
       demo: false,
-      reason:
-        "Pay 19 USDC on Base through 0G Pay's TokenFlight route. Treasury settlement is native 0G. Network gas is additional.",
+      reason: `Pay ${PLAN.usdCents / 100} USDC on Base through 0G Pay's TokenFlight route. Treasury settlement is native 0G. Network gas is additional.`,
     };
   } catch {
     return {

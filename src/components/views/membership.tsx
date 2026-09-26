@@ -1,17 +1,22 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, ShieldCheck, ArrowUpRight } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Check } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { useResource, useSession } from "../session";
 import { PageTitle, Eyebrow, Arrow, ErrorBox, Loading, AccessState, dateLabel } from "../ui";
 import type { Invoice } from "@/lib/types";
+import { PLAN } from "@/lib/constants";
+import { formatUsd } from "@/lib/money";
+import { OgPayTrigger } from "../og-pay-trigger";
+import { formatUnits } from "viem";
 export function MembershipView() {
-  const { me, ready, config, api, login, notice } = useSession(),
+  const { me, ready, config, api, login } = useSession(),
     router = useRouter();
   const { data: history } = useResource<{ items: Invoice[] }>(me ? "invoices" : null);
   const [busy, setBusy] = useState(false),
-    [error, setError] = useState<Error | null>(null);
+    [error, setError] = useState<Error | null>(null),
+    [selectedWallet, setSelectedWallet] = useState("");
   async function purchase() {
     if (!me) return login();
     setBusy(true);
@@ -23,7 +28,9 @@ export function MembershipView() {
       const invoice = await api<Invoice>("invoices", {
         method: "POST",
         body: JSON.stringify({
-          sourceWallet: result.addresses[0],
+          sourceWallet: result.addresses.includes(selectedWallet)
+            ? selectedWallet
+            : result.addresses[0],
           idempotencyKey: crypto.randomUUID(),
         }),
       });
@@ -67,7 +74,8 @@ export function MembershipView() {
             </span>
           </div>
           <div className="price">
-            $39<span>/ mo</span>
+            {formatUsd(PLAN.usdCents)}
+            <span>/ 30 days</span>
           </div>
           <p className="muted">One membership, wherever we go.</p>
           <ul className="benefit-list">
@@ -92,6 +100,21 @@ export function MembershipView() {
               Paid through {me.membership.paidThrough ? dateLabel(me.membership.paidThrough) : "—"}.
               Renewal adds 30 days after this.
             </div>
+          )}
+          {!!me?.walletAddresses.length && !config?.demo && (
+            <label className="small">
+              Paying wallet
+              <select
+                value={selectedWallet || me.walletAddresses[0]}
+                onChange={(event) => setSelectedWallet(event.target.value)}
+              >
+                {me.walletAddresses.map((address) => (
+                  <option key={address} value={address}>
+                    {address}
+                  </option>
+                ))}
+              </select>
+            </label>
           )}
           <ErrorBox error={error} />
           <button
@@ -149,7 +172,9 @@ export function MembershipView() {
           <div className="menu-list">
             {history.items.slice(0, 10).map((invoice) => (
               <Link key={invoice.id} href={"/checkout/" + invoice.id}>
-                <span>{dateLabel(invoice.createdAt)} · $39</span>
+                <span>
+                  {dateLabel(invoice.createdAt)} · {formatUsd(invoice.usdCents)}
+                </span>
                 <span>{invoice.status.replaceAll("_", " ")} ↗</span>
               </Link>
             ))}
@@ -161,14 +186,36 @@ export function MembershipView() {
 }
 export function CheckoutView({ id }: { id: string }) {
   const { data: invoice, error, loading, reload } = useResource<Invoice>("invoices/" + id),
-    { api, refresh, notice } = useSession();
+    { api, refresh, walletProvider } = useSession();
   const [busy, setBusy] = useState(false),
-    [failure, setFailure] = useState<Error | null>(null);
+    [failure, setFailure] = useState<Error | null>(null),
+    [recoveryHash, setRecoveryHash] = useState("");
   useEffect(() => {
     if (!invoice || !["submitted", "confirming"].includes(invoice.status)) return;
     const timer = setInterval(() => void reload(), 5000);
     return () => clearInterval(timer);
   }, [invoice?.status, reload]);
+  async function submitHint(hint: { sourceTx: string }) {
+    await api("invoices/" + id + "/submit", { method: "POST", body: JSON.stringify(hint) });
+    await reload();
+  }
+  const refreshedSettlement = useRef<string | null>(null);
+  useEffect(() => {
+    if (invoice?.status !== "settled" || refreshedSettlement.current === invoice.id) return;
+    refreshedSettlement.current = invoice.id;
+    void refresh();
+  }, [invoice?.id, invoice?.status, refresh]);
+  async function recover() {
+    setBusy(true);
+    setFailure(null);
+    try {
+      await submitHint({ sourceTx: recoveryHash.trim() });
+    } catch (value) {
+      setFailure(value instanceof Error ? value : new Error("Could not resume verification."));
+    } finally {
+      setBusy(false);
+    }
+  }
   async function simulate() {
     setBusy(true);
     setFailure(null);
@@ -201,7 +248,7 @@ export function CheckoutView({ id }: { id: string }) {
         </p>
         <div className="checkout-summary">
           <span>All Access / 30 days</span>
-          <strong>$39.00</strong>
+          <strong>{formatUsd(invoice.usdCents, 2)}</strong>
         </div>
         <div className="payment-state">
           <span className={"status-dot" + (settled ? "" : " muted-dot")} />
@@ -211,6 +258,23 @@ export function CheckoutView({ id }: { id: string }) {
           <div className="note">
             This local simulation exercises invoices, settlement checks, and membership activation.
             It does not use mainnet or move money.
+          </div>
+        )}
+        {invoice.payment && !settled && (
+          <div className="note">
+            <strong>
+              You pay {formatUnits(BigInt(invoice.payment.sourceAmount), 6)} USDC on Base.
+            </strong>
+            <p>
+              Network gas is additional. 0G Pay routes the payment through TokenFlight. The treasury
+              receives at least {formatUnits(BigInt(invoice.payment.minimumOutput), 18)} native 0G
+              on 0G mainnet after the quoted route fees. USDC remains the source asset.
+            </p>
+            <p className="small">
+              Treasury: {invoice.payment.recipient}
+              <br />
+              Paying wallet: {invoice.payment.sourceWallet}
+            </p>
           </div>
         )}
         <ErrorBox error={failure} />
@@ -226,6 +290,14 @@ export function CheckoutView({ id }: { id: string }) {
               Find your people <Arrow />
             </Link>
           </>
+        ) : !invoice.demo && invoice.payment && invoice.status === "quoted" ? (
+          <OgPayTrigger
+            invoiceId={id}
+            payment={invoice.payment}
+            walletProvider={walletProvider}
+            onTransactionHint={submitHint}
+            onFailure={setFailure}
+          />
         ) : invoice.demo && invoice.status === "quoted" ? (
           <button className="button lime full" disabled={busy} onClick={() => void simulate()}>
             {busy ? "Verifying demo settlement…" : "Complete demo purchase"}
@@ -234,9 +306,39 @@ export function CheckoutView({ id }: { id: string }) {
         ) : (
           <div className="note">
             {invoice.status === "expired"
-              ? "This quote expired. Return to membership to create a new one."
+              ? "This quote expired. If you already sent funds, submit the source transaction below so we can verify the original quote. Do not pay twice."
               : "Your invoice is retained. Refresh this page to check its status. Do not pay again while it is pending."}
           </div>
+        )}
+        {!invoice.demo && invoice.payment && ["quoted", "expired"].includes(invoice.status) && (
+          <details className="note">
+            <summary>Already sent the payment?</summary>
+            <p>
+              Paste the Base deposit transaction from your wallet to resume verification. Use the
+              deposit hash, not the USDC approval hash.
+            </p>
+            <label>
+              Base transaction hash
+              <input
+                value={recoveryHash}
+                onChange={(event) => setRecoveryHash(event.target.value)}
+                placeholder="0x…"
+              />
+            </label>
+            <button
+              className="button ghost full"
+              disabled={busy || !/^0x[\da-fA-F]{64}$/.test(recoveryHash.trim())}
+              onClick={() => void recover()}
+            >
+              Resume verification
+            </button>
+          </details>
+        )}
+        {invoice.status === "review_required" && (
+          <p className="note">
+            Your payment needs support review. Keep this invoice and transaction hash. Do not pay
+            again until the original payment or refund is resolved.
+          </p>
         )}
         <dl className="receipt">
           <div>
@@ -245,12 +347,46 @@ export function CheckoutView({ id }: { id: string }) {
           </div>
           <div>
             <dt>Provider</dt>
-            <dd>{invoice.demo ? "Local simulation" : invoice.provider}</dd>
+            <dd>
+              {invoice.demo
+                ? "Local simulation"
+                : invoice.provider === "0g-pay"
+                  ? "0G Pay / TokenFlight"
+                  : invoice.provider}
+            </dd>
           </div>
           <div>
             <dt>Quote expires</dt>
             <dd>{dateLabel(invoice.quoteExpiresAt)}</dd>
           </div>
+          {invoice.sourceTx && !invoice.demo && (
+            <div>
+              <dt>Source transaction</dt>
+              <dd>
+                <a
+                  href={"https://basescan.org/tx/" + invoice.sourceTx}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  View on Base ↗
+                </a>
+              </dd>
+            </div>
+          )}
+          {invoice.destinationTx && !invoice.demo && (
+            <div>
+              <dt>Treasury receipt</dt>
+              <dd>
+                <a
+                  href={"https://chainscan.0g.ai/tx/" + invoice.destinationTx}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  View on 0G ↗
+                </a>
+              </dd>
+            </div>
+          )}
           {invoice.settledAt && (
             <div>
               <dt>Settled</dt>

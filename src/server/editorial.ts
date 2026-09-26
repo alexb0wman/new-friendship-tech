@@ -70,7 +70,9 @@ export async function listContent(
     section ? eq(s.contentItems.section, section as ContentSection) : undefined,
     kind ? eq(s.contentItems.kind, kind as ContentKind) : undefined,
     city ? eq(s.contentItems.city, city) : undefined,
-    q ? sql`(${s.contentItems.title} ILIKE ${"%" + q + "%"} OR ${s.contentItems.summary} ILIKE ${"%" + q + "%"})` : undefined,
+    q
+      ? sql`(${s.contentItems.title} ILIKE ${"%" + q + "%"} OR ${s.contentItems.summary} ILIKE ${"%" + q + "%"})`
+      : undefined,
   );
   const [{ n: total }] = (await db
     .select({ n: sql<number>`count(*)::int` })
@@ -115,24 +117,37 @@ export async function contentBySlug(user: s.UserRow | null, slug: string) {
 export async function upsertContent(actor: s.UserRow, body: ContentInput) {
   invariant(actor.admin, "FORBIDDEN", "Administrator access required.", 403);
   const { id, ...input } = body;
-  return applyWrite(actor.id, id ? "content.update" : "content.create", id ?? input.slug, async (tx) => {
-    if (input.city) {
-      const [city] = await tx.select().from(s.cities).where(eq(s.cities.slug, input.city));
-      invariant(city, "NOT_FOUND", "That city does not exist.", 404);
-    }
-    const values = {
-      ...input,
-      publishedAt: input.status === "published" ? new Date() : undefined,
-      updatedAt: new Date(),
-    };
-    if (id) {
-      const [row] = await tx.update(s.contentItems).set(values).where(eq(s.contentItems.id, id)).returning();
-      invariant(row, "NOT_FOUND", "That item does not exist.", 404);
+  return applyWrite(
+    actor.id,
+    id ? "content.update" : "content.create",
+    id ?? input.slug,
+    async (tx) => {
+      if (input.city) {
+        const [city] = await tx.select().from(s.cities).where(eq(s.cities.slug, input.city));
+        invariant(city, "NOT_FOUND", "That city does not exist.", 404);
+      }
+      const values = {
+        ...input,
+        publishedAt: input.status === "published" ? new Date() : undefined,
+        updatedAt: new Date(),
+      };
+      if (id) {
+        const [row] = await tx
+          .update(s.contentItems)
+          .set(values)
+          .where(eq(s.contentItems.id, id))
+          .returning();
+        invariant(row, "NOT_FOUND", "That item does not exist.", 404);
+        return contentDTO(row);
+      }
+      const [row] = await tx
+        .insert(s.contentItems)
+        .values(values)
+        .onConflictDoUpdate({ target: s.contentItems.slug, set: values })
+        .returning();
       return contentDTO(row);
-    }
-    const [row] = await tx.insert(s.contentItems).values(values).onConflictDoUpdate({ target: s.contentItems.slug, set: values }).returning();
-    return contentDTO(row);
-  });
+    },
+  );
 }
 
 export async function deleteContent(actor: s.UserRow, id: string) {
@@ -219,7 +234,8 @@ const demoContent: ContentInput[] = [
     kind: "playlist",
     section: "music",
     title: "An Evening in Tokyo: vinyl-era city pop",
-    summary: "A starter city pop playlist for late nights, from Tatsuro Yamashita to Mariya Takeuchi.",
+    summary:
+      "A starter city pop playlist for late nights, from Tatsuro Yamashita to Mariya Takeuchi.",
     body: "City pop is the sound of 1970s and 80s Tokyo nightlife. Start with Tatsuro Yamashita's For You, then Mariya Takeuchi's Variety, then Maki Nomiya's early work. Many Tokyo listening bars play exactly this set; knowing it makes the room familiar.",
     sourceUrl: "https://open.spotify.com/",
     city: "tokyo",
@@ -258,7 +274,8 @@ const demoContent: ContentInput[] = [
     kind: "story",
     section: "tech",
     title: "A short guide to Tokyo developer meetups",
-    summary: "Where the English-friendly engineering meetups actually happen, and how to show up well.",
+    summary:
+      "Where the English-friendly engineering meetups actually happen, and how to show up well.",
     body: "Most English-language engineering meetups in Tokyo run on weekday evenings in Shibuya or Marunouchi. RSVP in advance; venue capacity is real. The afterparty matters more than the talks.",
     sourceUrl: "https://www.meetup.com/",
     city: "tokyo",
@@ -271,8 +288,7 @@ const demoContent: ContentInput[] = [
     kind: "company",
     section: "tech",
     title: "Sample company profile",
-    summary:
-      "A template entry. Replace it with a real featured company from the admin console.",
+    summary: "A template entry. Replace it with a real featured company from the admin console.",
     body: "This is a sample company feature so the Companies list is never empty. Edit it in Admin, Content: set the name, industry, location, website, and an optional confirmed member affiliation.",
     sourceUrl: "https://example.com/",
     city: "tokyo",
@@ -285,7 +301,8 @@ const demoContent: ContentInput[] = [
     kind: "opportunity",
     section: "tech",
     title: "Find a teammate for Tokyo hackathons",
-    summary: "A standing thread for members looking for teammates at Tokyo hackathons and game jams.",
+    summary:
+      "A standing thread for members looking for teammates at Tokyo hackathons and game jams.",
     body: "Use this thread to post what you are building and what you need. Send a direct connection request through the Network. The operator reviews submissions.",
     sourceUrl: "https://ethglobal.com/",
     city: "tokyo",

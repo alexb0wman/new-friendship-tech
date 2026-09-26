@@ -2,7 +2,7 @@
 
 ## Privy
 
-Implemented: client provider; email and wallet sign-in; server access-token verification with `@privy-io/node`; unique subject enrollment; server-owned wallet association. Configure the same app ID in `NEXT_PUBLIC_PRIVY_APP_ID` at build time and `PRIVY_APP_ID` at runtime. Keep the secret server-only. Add the exact app origin to Privy's allowed origins. Configure the desired email and embedded-wallet settings in the provider dashboard.
+Implemented: client provider; email and wallet sign-in; server access-token verification with `@privy-io/node`; unique subject enrollment; server-owned wallet association. Configure `PRIVY_APP_ID` and `PRIVY_APP_SECRET` at runtime. The browser obtains the public app ID from `GET /api/auth/config`, using the same runtime configuration as token verification; it no longer depends on a build-time `NEXT_PUBLIC_PRIVY_APP_ID`. That variable remains a server-side fallback for existing deployments. Keep the secret server-only. Add the exact app origin to Privy's allowed origins. Configure the desired email and embedded-wallet settings in the provider dashboard. A failed bootstrap can be retried with Sign in; clicks while initialization is pending are carried through to the login modal.
 
 Test email login, external wallet login, logout, refresh, expired tokens, wallet unlink/relink, duplicate-account recovery and mobile wallet return navigation. Automatic account merging is deliberately absent. Admin support must review identity conflicts.
 
@@ -30,7 +30,7 @@ References: https://docs.world.org/world-id/idkit/integrate and https://docs.wor
 
 ## 0G Pay
 
-Membership checkout uses the official TokenFlight HTTP API underlying the pinned 0G Pay SDK, without importing its broken browser `ethers` dependency. The supported route is **19 native USDC on Base → quoted native 0G to the merchant on chain 16661**. Routing fees affect the quoted 0G output. Wallet gas is additional. This is not a USDC settlement on 0G or an arbitrary multi-asset checkout.
+Membership checkout uses the official TokenFlight HTTP API underlying the pinned 0G Pay SDK, without importing its broken browser `ethers` dependency. The current plan route is **39 native USDC on Base → quoted native 0G to the merchant on chain 16661**. Historical invoices retain their stored price. Routing fees affect the quoted 0G output. Wallet gas is additional. This is not a USDC settlement on 0G or an arbitrary multi-asset checkout.
 
 Configure `PAYMENT_RECIPIENT` (EOA treasury), `PAYMENT_SOURCE_RPC_URL` (Base), `PAYMENT_RPC_URL` (0G), `PAYMENT_PROVIDER=0g-pay`, and `CHECKOUT_ENABLED=true`. Both confirmation counts default to a minimum of 12. The destination RPC must support call traces when settlement uses an internal native transfer. `TOKENFLIGHT_INTEGRATOR_ID` is optional fee attribution, if assigned by the provider.
 

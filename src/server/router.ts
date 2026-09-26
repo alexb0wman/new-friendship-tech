@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { actorFromRequest, demoSession, syncVerifiedWallets } from "./auth";
-import { config, uuid, txHash } from "./config";
+import { config, publicAuthConfig, uuid, txHash } from "./config";
 import { AppError, errorResponse, invariant } from "./errors";
 import { assertOrigin, jsonBody, rateLimit } from "./http";
 import { getDb } from "./db";
@@ -39,6 +39,8 @@ export async function handleApi(request: Request): Promise<Response> {
     method = request.method;
   try {
     assertOrigin(request);
+    // Login must bootstrap without a session, a database connection, or payment readiness.
+    if (path === "auth/config" && method === "GET") return ok(publicAuthConfig(), correlationId);
     if (path === "health" && method === "GET") {
       await (await getDb()).execute(sql.raw("select 1"));
       return ok(

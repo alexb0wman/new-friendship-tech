@@ -5,6 +5,7 @@ import { Search, BadgeCheck } from "lucide-react";
 import { useResource, useSession } from "../session";
 import { PageTitle, Loading, AccessState, Empty, Avatar, Tag, Arrow, ErrorBox, Modal } from "../ui";
 import { RequestDialog } from "../request-dialog";
+import { useCitySelection } from "../city-selection";
 import type { PublicMember, ConnectionItem } from "@/lib/types";
 
 export function MemberCard({ member, onConnect }: { member: PublicMember; onConnect: () => void }) {
@@ -126,6 +127,7 @@ export function PeopleView({ city }: { city: string }) {
   );
 }
 export function MemberView({ id }: { id: string }) {
+  const { citySlug } = useCitySelection();
   const { data: member, error, loading, reload } = useResource<PublicMember>("members/" + id);
   const { api, notice } = useSession(),
     [request, setRequest] = useState(false),
@@ -155,7 +157,7 @@ export function MemberView({ id }: { id: string }) {
   if (!member) return null;
   return (
     <>
-      <Link href="/tokyo/people" className="back-link">
+      <Link href={citySlug ? "/" + citySlug + "/people" : "/network"} className="back-link">
         ← Back to people
       </Link>
       <div className="profile-cover">
@@ -223,6 +225,7 @@ export function MemberView({ id }: { id: string }) {
   );
 }
 export function RequestsView() {
+  const { citySlug } = useCitySelection();
   const { data, error, loading, reload } = useResource<{ items: ConnectionItem[] }>("requests"),
     { api, refresh, notice } = useSession();
   const [tab, setTab] = useState("All"),
@@ -351,7 +354,7 @@ export function RequestsView() {
         <Empty
           title="Every connection starts somewhere."
           action={
-            <Link href="/tokyo/people" className="button lime">
+            <Link href={citySlug ? "/" + citySlug + "/people" : "/network"} className="button lime">
               Find your people <Arrow />
             </Link>
           }

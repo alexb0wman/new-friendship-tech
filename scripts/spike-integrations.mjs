@@ -14,8 +14,13 @@ for (const [name, url, expected] of checks) {
   console.log(`${name}: chain ${chainId} ${chainId === expected ? "ok" : "MISMATCH"} via ${url}`);
 }
 
-const missing = ["NEXT_PUBLIC_PRIVY_APP_ID", "PRIVY_APP_SECRET", "PAYMENT_RECIPIENT", "ENS_SEPOLIA_RPC_URL"].filter(
-  (key) => !process.env[key],
+const missing = [
+  "NEXT_PUBLIC_PRIVY_APP_ID",
+  "PRIVY_APP_SECRET",
+  "PAYMENT_RECIPIENT",
+  "ENS_SEPOLIA_RPC_URL",
+].filter((key) => !process.env[key]);
+console.log(
+  missing.length ? `still required: ${missing.join(", ")}` : "operator secrets are present",
 );
-console.log(missing.length ? `still required: ${missing.join(", ")}` : "operator secrets are present");
 console.log("checkout stays closed until a real receipt is verified against PAYMENT_RECIPIENT");

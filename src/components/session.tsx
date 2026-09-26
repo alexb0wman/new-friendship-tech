@@ -5,12 +5,14 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
 import dynamic from "next/dynamic";
 import type { Me, ApiErrorShape } from "@/lib/types";
 import type { EIP1193Provider } from "viem";
+import type { PublicAuthConfig } from "@/lib/auth-config";
 
 export interface RuntimeConfig {
   demo: boolean;
@@ -85,11 +87,73 @@ const PrivyBridge = dynamic(() => import("./privy-bridge"), {
 });
 
 export function Providers({ children }: { children: ReactNode }) {
-  const demo = process.env.NEXT_PUBLIC_APP_MODE === "demo";
-  const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
-  if (!demo && appId) return <PrivyBridge appId={appId}>{children}</PrivyBridge>;
+  const [auth, setAuth] = useState<PublicAuthConfig | null>(null);
+  const [error, setError] = useState(false);
+  const [loginRequested, setLoginRequested] = useState(false);
+  const pending = useRef<AbortController | null>(null);
+  const loadAuth = useCallback(async () => {
+    pending.current?.abort();
+    const controller = new AbortController();
+    pending.current = controller;
+    setError(false);
+    setAuth(null);
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    try {
+      const response = await fetch("/api/auth/config", {
+        credentials: "same-origin",
+        cache: "no-store",
+        signal: controller.signal,
+      });
+      if (!response.ok) throw new Error("Sign-in is unavailable.");
+      const value = (await response.json()) as PublicAuthConfig;
+      if (
+        typeof value.demo !== "boolean" ||
+        typeof value.enabled !== "boolean" ||
+        !(value.appId === null || typeof value.appId === "string") ||
+        (!value.demo && value.enabled && !value.appId)
+      )
+        throw new Error("Sign-in is unavailable.");
+      if (pending.current === controller) setAuth(value);
+    } catch {
+      if (pending.current === controller) setError(true);
+    } finally {
+      clearTimeout(timeout);
+    }
+  }, []);
+  useEffect(() => {
+    void loadAuth();
+    return () => {
+      pending.current?.abort();
+      pending.current = null;
+    };
+  }, [loadAuth]);
+  const onLoginHandled = useCallback(() => setLoginRequested(false), []);
+  const requestLogin = useCallback(() => {
+    if (auth && !auth.enabled && loginRequested)
+      throw new Error("Sign-in is temporarily unavailable. Please try again later.");
+    setLoginRequested(true);
+    if (error || (auth && !auth.enabled)) void loadAuth();
+  }, [auth, error, loadAuth, loginRequested]);
+  if (auth && !auth.demo && auth.enabled && auth.appId)
+    return (
+      <PrivyBridge
+        appId={auth.appId}
+        loginRequested={loginRequested}
+        onLoginHandled={onLoginHandled}
+      >
+        {children}
+      </PrivyBridge>
+    );
   return (
-    <SessionController demo={demo} getToken={emptyToken} authReady={true}>
+    <SessionController
+      demo={auth?.demo ?? false}
+      getToken={emptyToken}
+      authReady={!!auth}
+      onLogin={requestLogin}
+      loginRequested={loginRequested}
+      onLoginHandled={onLoginHandled}
+      authError={error ? "Unable to connect to sign-in. Select Sign in to retry." : undefined}
+    >
       {children}
     </SessionController>
   );
@@ -100,6 +164,9 @@ export function SessionController({
   getToken,
   authReady,
   authRevision = "",
+  loginRequested = false,
+  onLoginHandled,
+  authError,
   onLogin,
   onLogout,
   getProvider = unavailableProvider,
@@ -109,7 +176,10 @@ export function SessionController({
   getToken: () => Promise<string | null>;
   authReady: boolean;
   authRevision?: string;
-  onLogin?: () => void;
+  loginRequested?: boolean;
+  onLoginHandled?: () => void;
+  authError?: string;
+  onLogin?: () => void | Promise<void>;
   onLogout?: () => Promise<void>;
   getProvider?: (address?: string) => Promise<EIP1193Provider>;
 }) {
@@ -118,6 +188,7 @@ export function SessionController({
   const [revision, setRevision] = useState(0),
     [runtime, setRuntime] = useState<RuntimeConfig | null>(null),
     [toast, setToast] = useState("");
+  const refreshSequence = useRef(0);
   const api = useCallback(
     async <T,>(path: string, options: RequestInit = {}): Promise<T> => {
       const token = await getToken(),
@@ -154,7 +225,13 @@ export function SessionController({
   }, [api]);
   useEffect(() => {
     if (authReady) void refresh();
+    return () => {
+      refreshSequence.current++;
+    };
   }, [authReady, authRevision, refresh]);
+  useEffect(() => {
+    if (authError) setToast(authError);
+  }, [authError]);
   useEffect(() => {
     if (!toast) return;
     const id = setTimeout(() => setToast(""), 5000);
@@ -168,15 +245,32 @@ export function SessionController({
     [api, refresh],
   );
   const login = useCallback(async () => {
-    if (demo) await switchDemo("alex");
-    else if (onLogin) onLogin();
-    else setToast("Privy sign-in is not configured in this build.");
+    try {
+      if (demo) await switchDemo("alex");
+      else if (onLogin) await onLogin();
+      else setToast("Sign-in is temporarily unavailable. Please try again later.");
+    } catch (error) {
+      setToast(error instanceof Error ? error.message : "Unable to sign in. Please try again.");
+    }
   }, [demo, switchDemo, onLogin]);
+  const handledLoginRequest = useRef(false);
+  useEffect(() => {
+    if (!loginRequested) handledLoginRequest.current = false;
+    if (!loginRequested || !authReady || handledLoginRequest.current) return;
+    handledLoginRequest.current = true;
+    onLoginHandled?.();
+    void login();
+  }, [loginRequested, authReady, login, onLoginHandled]);
   const logout = useCallback(async () => {
-    if (demo) await api("demo/session", { method: "DELETE" });
-    else await onLogout?.();
-    setMe(null);
-    setRevision((value) => value + 1);
+    try {
+      if (demo) await api("demo/session", { method: "DELETE" });
+      else await onLogout?.();
+      refreshSequence.current++;
+      setMe(null);
+      setRevision((value) => value + 1);
+    } catch (error) {
+      setToast(error instanceof Error ? error.message : "Unable to sign out. Please try again.");
+    }
   }, [api, demo, onLogout]);
   const value = useMemo(
     () => ({
@@ -214,52 +308,48 @@ export function useSession() {
   return session;
 }
 export function useResource<T>(path: string | null) {
-  const { api, revision } = useSession(),
+  const { api, revision, me } = useSession(),
     [data, setData] = useState<T | null>(null),
     [error, setError] = useState<Error | null>(null),
     [loading, setLoading] = useState(!!path);
+  const requestSequence = useRef(0);
+  const controller = useRef<AbortController | null>(null);
+  const resourceKey = `${me?.user.id ?? "guest"}:${path ?? ""}`;
+  const previousKey = useRef<string | null>(null);
   const reload = useCallback(async () => {
+    const sequence = ++requestSequence.current;
+    controller.current?.abort();
+    const request = new AbortController();
+    controller.current = request;
+    // Preserve an unchanged result during revalidation. Checkout reacts to a newly
+    // settled invoice; clearing it on every session refresh would retrigger that effect.
+    if (previousKey.current !== resourceKey) setData(null);
+    previousKey.current = resourceKey;
+    setError(null);
     if (!path) {
       setLoading(false);
-      setData(null);
       return;
     }
     setLoading(true);
     setError(null);
     try {
-      setData(await api<T>(path));
+      const result = await api<T>(path, { signal: request.signal });
+      if (sequence === requestSequence.current) setData(result);
     } catch (value) {
-      setError(value instanceof Error ? value : new Error("Unable to load."));
+      if (sequence === requestSequence.current) {
+        setData(null);
+        setError(value instanceof Error ? value : new Error("Unable to load."));
+      }
     } finally {
-      setLoading(false);
+      if (sequence === requestSequence.current) setLoading(false);
     }
-  }, [path, api]);
+  }, [path, api, resourceKey]);
   useEffect(() => {
-    let cancelled = false;
-    if (!path) {
-      setData(null);
-      setError(null);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    void api<T>(path)
-      .then((result) => {
-        if (!cancelled) setData(result);
-      })
-      .catch((value) => {
-        if (!cancelled) {
-          setData(null);
-          setError(value instanceof Error ? value : new Error("Unable to load."));
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+    void reload();
     return () => {
-      cancelled = true;
+      requestSequence.current++;
+      controller.current?.abort();
     };
-  }, [path, api, revision]);
+  }, [reload, revision]);
   return { data, error, loading, reload };
 }

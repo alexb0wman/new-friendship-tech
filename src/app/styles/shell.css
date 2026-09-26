@@ -387,3 +387,17 @@
 .app-frame[data-menu-open] .app-header {
   z-index: 45;
 }
+
+.city-poster-name {
+  display: grid;
+  place-items: center;
+  min-height: 340px;
+  padding: 40px 24px;
+  background: radial-gradient(ellipse at top right, #414630, #171916 70%);
+  color: var(--lime);
+  font-size: clamp(44px, 6vw, 86px);
+  line-height: 1;
+  letter-spacing: -0.06em;
+  overflow-wrap: anywhere;
+  text-align: center;
+}

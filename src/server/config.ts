@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { PublicAuthConfig } from "@/lib/auth-config";
 
 const bool = (value: string | undefined, fallback = false) =>
   value === undefined ? fallback : value === "true";
@@ -33,7 +34,7 @@ export function config() {
     demo,
     origin,
     databaseUrl: process.env.DATABASE_URL,
-    privyAppId: process.env.PRIVY_APP_ID ?? process.env.NEXT_PUBLIC_PRIVY_APP_ID,
+    privyAppId: (process.env.PRIVY_APP_ID ?? process.env.NEXT_PUBLIC_PRIVY_APP_ID)?.trim(),
     privySecret: process.env.PRIVY_APP_SECRET,
     enrollmentOpen: bool(process.env.ENROLLMENT_OPEN, true),
     directoryEnabled: bool(process.env.MEMBER_DIRECTORY_ENABLED, true),
@@ -62,6 +63,16 @@ export function productionRequirements() {
   if (process.env.NEXT_PUBLIC_APP_MODE !== "production")
     missing.push("NEXT_PUBLIC_APP_MODE=production");
   return missing;
+}
+/** Resolve the same runtime app ID used by access-token verification, without exposing secrets. */
+export function publicAuthConfig(): PublicAuthConfig {
+  const env = config();
+  const appId = env.privyAppId?.trim() || null;
+  return {
+    demo: env.demo,
+    enabled: env.demo || !!(appId && env.privySecret?.trim()),
+    appId: env.demo ? null : appId,
+  };
 }
 export const uuid = z.string().uuid();
 export const walletAddress = z

@@ -8,7 +8,7 @@ No live infrastructure was changed for this handoff. These steps are for the ope
 2. Create a dedicated PostgreSQL 16 database and least-privilege application role. Use a separate migration role if that is the existing operating standard. Do not use a shared superuser connection for the application.
 3. Take a restorable database backup before schema changes. Verify free memory/disk and avoid rebuilding in an actively served directory.
 4. Extract/checkout into a new immutable release directory. Use Node 22. `npm ci` installs the lockfile exactly. Keep development dependencies on the VM while the worker uses tsx and migrations run; do not use `npm ci --omit=dev` with this PM2 config.
-5. Supply public build variables: production app mode, public Privy app ID, and any explicitly browser-safe RPC endpoint. Run `npm run typecheck`, `npm test` and `npm run build`. Public variables are compiled into the client bundle and cannot be corrected only by changing PM2 runtime values.
+5. Supply public build variables: production app mode and any explicitly browser-safe RPC endpoint. Run `npm run typecheck`, `npm test` and `npm run build`. Most `NEXT_PUBLIC_*` values are compiled into the client bundle. Sign-in instead reads its public app ID from `GET /api/auth/config` at runtime; configure `PRIVY_APP_ID` and `PRIVY_APP_SECRET` on the application process. No build-time Privy ID is required.
 6. Set public runtime settings plus `SECRET_ENV_MAP` resource references. The attached service account resolves secrets inside the process. No key JSON file is required on GCE. Keep application and worker secret access narrowly scoped.
 7. Run `npm run db:migrate` against the dedicated database. The migration command serializes itself with a PostgreSQL advisory lock. Do not run destructive schema push commands against production.
 8. Validate owner-provided content with `npm run content:import -- content/your-local-reviewed.json`. Inspect the counts, then add `--apply`. The importer uses stable place slugs, retains existing IDs and writes atomically. It does not import newsletters, scrape Google Maps or fetch untrusted source URLs.
@@ -28,7 +28,7 @@ Use resource names specific to your project; these are placeholders:
 }
 ```
 
-This JSON is a value for `SECRET_ENV_MAP`. Do not put actual passwords or tokens in it. Existing ADC and KMS settings belong to the VM's intended service identity. Secret rotation requires controlled process restart because values are loaded once per process. Confirm the Privy app IDs match across build and runtime.
+This JSON is a value for `SECRET_ENV_MAP`. Do not put actual passwords or tokens in it. Existing ADC and KMS settings belong to the VM's intended service identity. Secret rotation requires controlled process restart because values are loaded once per process. Confirm `/api/auth/config` returns `enabled: true` and the intended public app ID; add the exact HTTPS origin to that app's Privy allowed origins. The route exposes no secret and deliberately works without a database connection. Test the actual email and wallet flows after deployment.
 
 ## Ingress, headers and CSP
 

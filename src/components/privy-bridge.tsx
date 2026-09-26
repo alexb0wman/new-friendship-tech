@@ -1,8 +1,8 @@
 "use client";
 import { PrivyProvider, usePrivy, useWallets } from "@privy-io/react-auth";
-import { useCallback, type ReactNode } from "react";
+import { useCallback, useState, type ReactNode } from "react";
 import { defineChain, type EIP1193Provider } from "viem";
-import { mainnet, sepolia } from "viem/chains";
+import { base, mainnet, sepolia } from "viem/chains";
 import { SessionController } from "./session";
 const zeroG = defineChain({
   id: 16661,
@@ -11,7 +11,17 @@ const zeroG = defineChain({
   rpcUrls: { default: { http: ["https://evmrpc.0g.ai"] } },
   blockExplorers: { default: { name: "0G Explorer", url: "https://chainscan.0g.ai" } },
 });
-export default function PrivyBridge({ appId, children }: { appId: string; children: ReactNode }) {
+export default function PrivyBridge({
+  appId,
+  children,
+  loginRequested,
+  onLoginHandled,
+}: {
+  appId: string;
+  children: ReactNode;
+  loginRequested: boolean;
+  onLoginHandled: () => void;
+}) {
   return (
     <PrivyProvider
       appId={appId}
@@ -19,15 +29,34 @@ export default function PrivyBridge({ appId, children }: { appId: string; childr
         loginMethods: ["email", "wallet"],
         appearance: { theme: "dark", accentColor: "#C7FF97", logo: "/wordmark.svg" },
         embeddedWallets: { ethereum: { createOnLogin: "users-without-wallets" } },
-        supportedChains: [mainnet, zeroG, sepolia],
+        supportedChains: [mainnet, base, zeroG, sepolia],
       }}
     >
-      <Bridge>{children}</Bridge>
+      <Bridge loginRequested={loginRequested} onLoginHandled={onLoginHandled}>
+        {children}
+      </Bridge>
     </PrivyProvider>
   );
 }
-function Bridge({ children }: { children: ReactNode }) {
+function Bridge({
+  children,
+  loginRequested,
+  onLoginHandled,
+}: {
+  children: ReactNode;
+  loginRequested: boolean;
+  onLoginHandled: () => void;
+}) {
   const { ready, authenticated, user, getAccessToken, login, logout } = usePrivy();
+  const [queuedLogin, setQueuedLogin] = useState(false);
+  const startLogin = useCallback(() => {
+    if (ready) login();
+    else setQueuedLogin(true);
+  }, [ready, login]);
+  const handleLoginRequest = useCallback(() => {
+    setQueuedLogin(false);
+    onLoginHandled();
+  }, [onLoginHandled]);
   const { wallets } = useWallets();
   const provider = useCallback(
     async (address?: string): Promise<EIP1193Provider> => {
@@ -43,9 +72,11 @@ function Bridge({ children }: { children: ReactNode }) {
     <SessionController
       demo={false}
       authReady={ready}
+      loginRequested={loginRequested || queuedLogin}
+      onLoginHandled={handleLoginRequest}
       authRevision={authenticated ? (user?.id ?? "") : "guest"}
       getToken={getAccessToken}
-      onLogin={login}
+      onLogin={startLogin}
       onLogout={logout}
       getProvider={provider}
     >

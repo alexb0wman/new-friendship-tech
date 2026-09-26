@@ -21,7 +21,7 @@ Only parallelize these work packages if the project owner explicitly assigns the
 
 ## Contracts to preserve
 
-- One global $19 / 30-day plan. Every published city included. Renewal is manual.
+- One global $39 / 30-day plan. Every published city included. Renewal is manual.
 - The launch city is Tokyo. Other cities need reviewed content and appropriate UI copy.
 - 60K+ is cumulative event attendance across the brand's events. Approximately 60K newsletter subscribers is a separate claim. Neither is an app-user count.
 - No Stripe in the alpha. No in-app chat, AI concierge, complex itinerary builder, graph visualization, loyalty token or NFT mint required for this release.

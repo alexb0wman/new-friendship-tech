@@ -7,6 +7,7 @@ import { DEMO_IDS, seedDemo } from "@/server/db/seed";
 import { demoSession } from "@/server/auth";
 import * as s from "@/server/db/schema";
 import { membership } from "@/server/membership";
+import { PLAN } from "@/lib/constants";
 import { reconcileInvoice, runWorkerOnce } from "@/server/payments/service";
 
 let db: Database;
@@ -302,7 +303,7 @@ describe("real API handlers against migrated PostgreSQL in PGlite", () => {
   it("owns invoices server-side and refuses an unverified source wallet", async () => {
     const r = await invoice();
     expect(r.status).toBe(201);
-    expect(r.body.usdCents).toBe(1900);
+    expect(r.body.usdCents).toBe(PLAN.usdCents);
     expect((await api("invoices/" + r.body.id, "maya")).status).toBe(404);
     expect((await api("invoices/" + r.body.id + "/simulate", "maya", "POST")).status).toBe(404);
     expect(

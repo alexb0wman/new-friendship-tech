@@ -5,3 +5,5 @@ drizzle/meta
 public/art
 public/*.svg
 docs/reference
+# Reviewed bulk catalog is intentionally kept in compact JSON form.
+content/asia-catalog.json

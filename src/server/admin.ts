@@ -54,7 +54,11 @@ export async function adminOverview(actor: s.UserRow) {
   return {
     places: await db.select().from(s.places).limit(100),
     events: await db.select().from(s.events).limit(100),
-    content: await db.select().from(s.contentItems).orderBy(desc(s.contentItems.updatedAt)).limit(200),
+    content: await db
+      .select()
+      .from(s.contentItems)
+      .orderBy(desc(s.contentItems.updatedAt))
+      .limit(200),
     reports: await db.select().from(s.reports).orderBy(desc(s.reports.createdAt)).limit(100),
     invoices: (
       await db.select().from(s.invoices).orderBy(desc(s.invoices.createdAt)).limit(100)

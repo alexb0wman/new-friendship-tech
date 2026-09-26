@@ -13,9 +13,10 @@ import {
   TimeLeft,
   Arrow,
   ErrorBox,
-  dateLabel,
 } from "../ui";
 import { RequestDialog } from "../request-dialog";
+import { useCitySelection } from "../city-selection";
+import { cityLabel } from "@/lib/city-navigation";
 import { ApprovalModal } from "../approval-modal";
 import type { ApprovalDTO, TripDTO } from "@/lib/types";
 import { INTENTS, NEIGHBORHOODS } from "@/lib/constants";
@@ -24,6 +25,8 @@ export function NowView({ city }: { city: string }) {
   const { data, error, loading, reload } = useResource<{ items: NowPost[] }>("now?city=" + city),
     { api, notice, me } = useSession();
   const { data: mine } = useResource<{ trip: TripDTO | null }>(me ? "trips/me?city=" + city : null);
+  const { cities } = useCitySelection();
+  const cityInfo = cities.find((item) => item.slug === city);
   const [approval, setApproval] = useState<ApprovalDTO | null>(null);
   // With an active trip and a linked World ID, the concierge posts it (approved, then written on
   // the trip name). Otherwise the invitation is posted directly, as before.
@@ -31,7 +34,7 @@ export function NowView({ city }: { city: string }) {
   const [open, setOpen] = useState(false),
     [selected, setSelected] = useState<NowPost | null>(null),
     [kind, setKind] = useState("Coffee"),
-    [area, setArea] = useState("Shibuya"),
+    [area, setArea] = useState(city === "tokyo" ? "Shibuya" : ""),
     [note, setNote] = useState(""),
     [hours, setHours] = useState(2),
     [formError, setFormError] = useState<Error | null>(null),
@@ -93,7 +96,7 @@ export function NowView({ city }: { city: string }) {
       <div className="now-intro">
         <span className="status-dot" />
         <p>Invitations are temporary. Good connections don't have to be.</p>
-        <span className="eyebrow">TOKYO / JST</span>
+        <span className="eyebrow">{cityInfo?.name ?? cityLabel(city)}</span>
       </div>
       {loading ? (
         <Loading />
@@ -161,11 +164,22 @@ export function NowView({ city }: { city: string }) {
           </div>
           <label className="field">
             Neighborhood
-            <select value={area} onChange={(event) => setArea(event.target.value)}>
-              {NEIGHBORHOODS.slice(1).map((item) => (
-                <option key={item}>{item}</option>
-              ))}
-            </select>
+            {city === "tokyo" ? (
+              <select value={area} onChange={(event) => setArea(event.target.value)}>
+                {NEIGHBORHOODS.slice(1).map((item) => (
+                  <option key={item}>{item}</option>
+                ))}
+              </select>
+            ) : (
+              <input
+                value={area}
+                onChange={(event) => setArea(event.target.value)}
+                required
+                minLength={1}
+                maxLength={60}
+                placeholder="Where would you like to meet?"
+              />
+            )}
           </label>
           <label className="field">
             A short invitation
@@ -231,6 +245,9 @@ export function EventsView({ city }: { city: string }) {
       "events?city=" + city,
     ),
     { api, me, login, notice } = useSession();
+  const { cities } = useCitySelection();
+  const cityInfo = cities.find((item) => item.slug === city);
+  const timeZone = cityInfo?.timezone ?? "UTC";
   async function save(event: EventItem) {
     if (!me) return login();
     try {
@@ -260,22 +277,30 @@ export function EventsView({ city }: { city: string }) {
             <article className="event-row" key={event.id}>
               <div className="event-date">
                 <span>
-                  {new Intl.DateTimeFormat("en", { month: "short", timeZone: "Asia/Tokyo" }).format(
+                  {new Intl.DateTimeFormat("en", { month: "short", timeZone }).format(
                     new Date(event.startsAt),
                   )}
                 </span>
                 <strong>
-                  {new Intl.DateTimeFormat("en", { day: "2-digit", timeZone: "Asia/Tokyo" }).format(
+                  {new Intl.DateTimeFormat("en", { day: "2-digit", timeZone }).format(
                     new Date(event.startsAt),
                   )}
                 </strong>
               </div>
               <div className="event-main">
                 <div className="eyebrow">
-                  {event.neighborhood} / {event.fixture ? "SAMPLE EVENT" : "TOKYO"}
+                  {event.neighborhood} /{" "}
+                  {event.fixture ? "SAMPLE EVENT" : (cityInfo?.name ?? cityLabel(city))}
                 </div>
                 <h2>{event.title}</h2>
-                <p>{dateLabel(event.startsAt)}</p>
+                <p>
+                  {new Intl.DateTimeFormat("en", {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                    timeZone,
+                  }).format(new Date(event.startsAt))}{" "}
+                  · {timeZone}
+                </p>
                 <p className="muted small">{event.accessNote}</p>
               </div>
               <div className="event-actions">

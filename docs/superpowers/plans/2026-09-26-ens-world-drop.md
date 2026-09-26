@@ -482,17 +482,13 @@ export interface ChainAdapter {
   simulateSetText(signer: Signer, name: string, key: string, value: string): Promise<void>;
   readText(name: string, key: string): Promise<string | null>;
   readAddr(name: string, coinType?: number): Promise<string | null>;
-  tripState(
-    label: string,
-  ): Promise<{
+  tripState(label: string): Promise<{
     status: "available" | "reserved" | "registered";
     expiry: number;
     owner: string | null;
   }>;
   receipt(hash: string): Promise<Receipt>;
-  erc20Transfer(
-    hash: string,
-  ): Promise<{
+  erc20Transfer(hash: string): Promise<{
     from: string;
     to: string;
     amount: bigint;
@@ -691,9 +687,7 @@ export async function activeTripFor(
   city: string,
   db?: Tx | Database,
 ): Promise<TripRow | null>; // status active only
-export async function tripByName(
-  name: string,
-): Promise<{
+export async function tripByName(name: string): Promise<{
   name: string;
   city: string;
   active: boolean;

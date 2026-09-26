@@ -3,6 +3,8 @@ import Link from "next/link";
 import { useEffect, useRef, type ReactNode } from "react";
 import { ArrowUpRight, X, LockKeyhole, RefreshCw } from "lucide-react";
 import { ApiError, useSession } from "./session";
+import { PLAN } from "@/lib/constants";
+import { formatUsd } from "@/lib/money";
 
 export function Arrow({ size = 18 }: { size?: number }) {
   return <ArrowUpRight size={size} strokeWidth={1.5} aria-hidden="true" />;
@@ -104,7 +106,7 @@ export function Paywall() {
       <p>
         All published city guides. Relevant people. Plans for right now.
         <br />
-        All Access is $39 a month. Cancel anytime.
+        All Access is {formatUsd(PLAN.usdCents)} for 30 days. Renew manually.
       </p>
       <Link className="button lime" href="/membership">
         Get All Access <Arrow />

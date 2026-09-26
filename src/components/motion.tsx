@@ -173,7 +173,7 @@ export function PreviewList({ items, label }: { items: PreviewItem[]; label: str
     >
       <ul aria-label={label}>
         {items.map((item, index) => (
-          <li key={item.href} style={{ ["--i" as string]: index }}>
+          <li key={item.title + ":" + item.href} style={{ ["--i" as string]: index }}>
             <Link
               href={item.href}
               className={"preview-row" + (active === index ? " is-active" : "")}
@@ -207,7 +207,7 @@ export function PreviewList({ items, label }: { items: PreviewItem[]; label: str
       <div className="preview-float" aria-hidden="true">
         {items.map((item, index) => (
           <img
-            key={item.href}
+            key={item.title + ":" + item.href}
             src={item.photo}
             alt=""
             loading="lazy"

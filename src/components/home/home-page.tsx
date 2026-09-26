@@ -2,6 +2,9 @@
 import Link from "next/link";
 import { ArrowUpRight, Check, Plus } from "lucide-react";
 import { useSession } from "@/components/session";
+import { useCitySelection } from "@/components/city-selection";
+import { PLAN } from "@/lib/constants";
+import { formatUsd } from "@/lib/money";
 import { PreviewList, Reveal, SplitWords, type PreviewItem } from "@/components/motion";
 
 const flows: PreviewItem[] = [
@@ -73,7 +76,10 @@ const faqs = [
     "Do I need a wallet to sign up?",
     "You can start with email. Paying for membership requires a supported funded wallet; the app guides you through the available options.",
   ],
-  ["Can I cancel?", "Yes. Cancel anytime. Access runs in 30-day periods until checkout opens."],
+  [
+    "Does membership renew automatically?",
+    "No. Each purchase covers 30 days. You choose whether to renew.",
+  ],
   [
     "Are events and meals included?",
     "Membership helps you discover and connect. Separately ticketed events, venue charges, meals, and drinks are paid separately.",
@@ -98,6 +104,13 @@ function Pill({ src, index }: { src: string; index: number }) {
 
 export function HomePage() {
   const { me, login } = useSession();
+  const { city, citySlug } = useCitySelection();
+  const cityName = city?.name ?? "cities";
+  const cityHref = (section = "") => (citySlug ? "/" + citySlug + section : "/cities");
+  const cityFlows = flows.map((item) => ({
+    ...item,
+    href: item.href.startsWith("/tokyo") ? cityHref(item.href.slice("/tokyo".length)) : item.href,
+  }));
   return (
     <div className="home">
       {/* 1. Hero: the one orchestrated load sequence on the page */}
@@ -112,15 +125,13 @@ export function HomePage() {
           <Pill src="/photos/trip.webp" index={1} /> <SplitWords text="experiences." offset={6} />
         </h1>
         <div className="hero-foot load-fade">
-          <p>
-            Become a member today and unlock exclusive early access.
-          </p>
+          <p>Become a member today and unlock exclusive early access.</p>
           <div className="button-row">
-            <Link href="/tokyo" className="button lime">
-              Explore Tokyo <ArrowUpRight size={16} />
+            <Link href={cityHref()} className="button lime">
+              Explore {cityName} <ArrowUpRight size={16} />
             </Link>
             {me ? (
-              <Link href="/tokyo/people" className="button ghost">
+              <Link href={cityHref("/people")} className="button ghost">
                 Find your people
               </Link>
             ) : (
@@ -171,7 +182,7 @@ export function HomePage() {
           </Reveal>
           <p>Dinners, galleries, trips, and the people in town.</p>
         </div>
-        <PreviewList items={flows} label="What you can do" />
+        <PreviewList items={cityFlows} label="What you can do" />
       </section>
 
       {/* 4. How it works. A real sequence, so it gets numbers. */}
@@ -207,7 +218,7 @@ export function HomePage() {
           <p className="muted small">
             You choose what to share. Contact details are revealed only after you both accept.
           </p>
-          <Link href="/tokyo/now" className="button ghost">
+          <Link href={cityHref("/now")} className="button ghost">
             See what's happening <ArrowUpRight size={16} />
           </Link>
         </div>
@@ -250,8 +261,8 @@ export function HomePage() {
           <div className="membership-card-head">
             <h3>All Access</h3>
             <p className="membership-price">
-              <strong>$39</strong>
-              <span>/ mo</span>
+              <strong>{formatUsd(PLAN.usdCents)}</strong>
+              <span>/ 30 days</span>
             </p>
           </div>
           <ul>
@@ -263,15 +274,15 @@ export function HomePage() {
             ))}
           </ul>
           <p className="muted small">
-            $39 a month. Cancel anytime. Separately ticketed events, meals, and drinks are not
-            included.
+            {formatUsd(PLAN.usdCents)} for 30 days. Renew manually. Separately ticketed events,
+            meals, and drinks are not included.
           </p>
           <div className="button-row">
             <Link href="/membership" className="button lime">
               Read the plan <ArrowUpRight size={16} />
             </Link>
-            <Link href="/tokyo" className="text-link">
-              Preview Tokyo first
+            <Link href={cityHref()} className="text-link">
+              Preview {cityName} first
             </Link>
           </div>
         </Reveal>
@@ -302,8 +313,8 @@ export function HomePage() {
         <Reveal as="h2" variant="words" id="final-title">
           <SplitWords text="Make somewhere new feel like somewhere you belong." />
         </Reveal>
-        <Link href="/tokyo" className="button lime">
-          Explore Tokyo <ArrowUpRight size={16} />
+        <Link href={cityHref()} className="button lime">
+          Explore {cityName} <ArrowUpRight size={16} />
         </Link>
       </section>
     </div>

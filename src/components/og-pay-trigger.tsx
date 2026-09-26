@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import type { EIP1193Provider } from "viem";
+import { formatUnits, type EIP1193Provider } from "viem";
 import type { MerchantPayment } from "@/lib/payment-types";
 
 type Hint = { sourceTx: string };
@@ -113,7 +113,7 @@ export function OgPayTrigger({
         ? "Waiting for wallet and verification…"
         : pendingHash
           ? "Resume payment verification"
-          : "Pay 19 USDC with 0G Pay"}
+          : `Pay ${formatUnits(BigInt(payment.sourceAmount), 6)} USDC with 0G Pay`}
     </button>
   );
 }

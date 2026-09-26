@@ -15,6 +15,8 @@ import {
   ErrorBox,
 } from "../ui";
 import { PlaceCard } from "../place-card";
+import { useCitySelection } from "../city-selection";
+import { cityLabel } from "@/lib/city-navigation";
 import { CATEGORIES, NEIGHBORHOODS } from "@/lib/constants";
 import type { Place, EventItem } from "@/lib/types";
 
@@ -22,8 +24,10 @@ export function ExploreView({ city }: { city: string }) {
   const { me, login } = useSession(),
     [category, setCategory] = useState("All"),
     [query, setQuery] = useState(""),
-    [area, setArea] = useState("Anywhere in Tokyo"),
+    [area, setArea] = useState(""),
     [filters, setFilters] = useState(false);
+  const { cities } = useCitySelection();
+  const cityName = cities.find((item) => item.slug === city)?.name ?? cityLabel(city);
   const params = new URLSearchParams({ city, category, q: query, neighborhood: area });
   const { data, loading, error, reload } = useResource<{ items: Place[]; access: string }>(
     "places?" + params,
@@ -33,36 +37,41 @@ export function ExploreView({ city }: { city: string }) {
       <div className="city-hero">
         <div className="city-hero-copy">
           <Eyebrow>
-            <span className="status-dot" /> TOKYO, JAPAN
+            <span className="status-dot" /> {cityName.toUpperCase()}
           </Eyebrow>
           <h1>
-            Tokyo,
+            {cityName},
             <br />
-            <span>saved by members.</span>
+            <span>Hand selected.</span>
           </h1>
-          <p>
-            Places worth the trip, people worth meeting, and a plan for tonight.
-          </p>
+          <p>Restaurants, galleries, coffee, and rooms we chose. Not a list people add to.</p>
           <div className="hero-pills">
-            <Link href="/tokyo/now">
+            <Link href={"/" + city + "/now"}>
               Make a plan <Arrow />
             </Link>
-            <Link href="/tokyo/people">
+            <Link href={"/" + city + "/people"}>
               Find your people <Arrow />
             </Link>
           </div>
         </div>
         <div className="city-poster">
-          <img src="/art/tokyo.svg" alt="Original typographic Tokyo city artwork" />
+          {city === "tokyo" ? (
+            <img src="/photos/places.webp" alt="Tokyo Tower above the city" />
+          ) : (
+            <div className="city-poster-name" aria-hidden="true">
+              {cityName}
+            </div>
+          )}
           <span className="poster-caption">
-            35°40′ N / 139°45′ E <span>01 / TOKYO</span>
+            The member collection <span>{cityName.toUpperCase()}</span>
           </span>
         </div>
       </div>
       {!me?.user.onboarded && me && (
         <Link className="onboarding-banner" href="/onboarding">
           <span>
-            <strong>Make Tokyo yours.</strong> A few details make the recommendations more useful.
+            <strong>Make {cityName} yours.</strong> A few details make the recommendations more
+            useful.
           </span>
           <Arrow />
         </Link>
@@ -87,10 +96,10 @@ export function ExploreView({ city }: { city: string }) {
           />
         </div>
         <button
-          className={"button ghost" + (area !== "Anywhere in Tokyo" ? " selected" : "")}
+          className={"button ghost" + (area ? " selected" : "")}
           onClick={() => setFilters(true)}
         >
-          <SlidersHorizontal size={17} /> Filters{area !== "Anywhere in Tokyo" ? " · 1" : ""}
+          <SlidersHorizontal size={17} /> Filters{area ? " · 1" : ""}
         </button>
       </div>
       <div className="filter-chips" role="group" aria-label="Place categories">
@@ -124,7 +133,7 @@ export function ExploreView({ city }: { city: string }) {
               onClick={() => {
                 setCategory("All");
                 setQuery("");
-                setArea("Anywhere in Tokyo");
+                setArea("");
               }}
             >
               Clear filters
@@ -148,17 +157,31 @@ export function ExploreView({ city }: { city: string }) {
           </button>
         </div>
       )}
-      <Modal open={filters} title="Find your corner of Tokyo" onClose={() => setFilters(false)}>
+      <Modal
+        open={filters}
+        title={"Find your corner of " + cityName}
+        onClose={() => setFilters(false)}
+      >
         <label className="field">
           Neighborhood
-          <select value={area} onChange={(event) => setArea(event.target.value)}>
-            {NEIGHBORHOODS.map((item) => (
-              <option key={item}>{item}</option>
-            ))}
-          </select>
+          {city === "tokyo" ? (
+            <select value={area} onChange={(event) => setArea(event.target.value)}>
+              <option value="">Anywhere in {cityName}</option>
+              {NEIGHBORHOODS.slice(1).map((item) => (
+                <option key={item}>{item}</option>
+              ))}
+            </select>
+          ) : (
+            <input
+              value={area}
+              onChange={(event) => setArea(event.target.value)}
+              placeholder={"Anywhere in " + cityName}
+              maxLength={60}
+            />
+          )}
         </label>
         <div className="row-between">
-          <button className="button ghost" onClick={() => setArea("Anywhere in Tokyo")}>
+          <button className="button ghost" onClick={() => setArea("")}>
             Clear
           </button>
           <button className="button lime" onClick={() => setFilters(false)}>
@@ -266,6 +289,7 @@ export function PlaceView({ slug }: { slug: string }) {
   );
 }
 export function SavedView() {
+  const { city, citySlug } = useCitySelection();
   const { data, error, loading, reload } = useResource<{ places: Place[]; events: EventItem[] }>(
     "saves",
   );
@@ -312,8 +336,8 @@ export function SavedView() {
         <Empty
           title="Start a collection worth keeping."
           action={
-            <Link href="/tokyo" className="button lime">
-              Explore Tokyo <Arrow />
+            <Link href={citySlug ? "/" + citySlug : "/cities"} className="button lime">
+              {city ? "Explore " + city.name : "Explore cities"} <Arrow />
             </Link>
           }
         >
