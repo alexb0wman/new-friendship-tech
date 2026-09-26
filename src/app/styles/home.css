@@ -4,6 +4,10 @@
  * stays ink, bone and lime. Large type does the structural work instead of cards.
  */
 
+html,
+body {
+  overflow-x: clip;
+}
 .home {
   --gutter: clamp(16px, 3.2vw, 48px);
   --section-gap: clamp(88px, 11vw, 176px);
@@ -118,6 +122,8 @@
 .hero-frame {
   margin: 0;
   padding: 0 var(--gutter);
+  overflow-x: clip;
+  max-width: 100%;
 }
 .hero-frame-inner {
   position: relative;
@@ -173,6 +179,8 @@
 
 .marquee {
   margin: clamp(16px, 2vw, 24px) calc(-1 * var(--gutter)) 0;
+  width: calc(100% + (2 * var(--gutter)));
+  max-width: 100vw;
   overflow: hidden;
   background: var(--lime);
   color: #050505;

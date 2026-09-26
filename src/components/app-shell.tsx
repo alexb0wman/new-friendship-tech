@@ -132,7 +132,7 @@ export function AppShell({ children, bleed = false }: { children: ReactNode; ble
         <div className="header-actions">
           {!me && (
             <button className="button small lime nav-cta" onClick={() => void login()}>
-              Join Waitlist
+              Waitlist
             </button>
           )}
           {me ? (
@@ -217,7 +217,7 @@ export function AppShell({ children, bleed = false }: { children: ReactNode; ble
         ))}
         {!me && (
           <button type="button" className="join" onClick={() => void login()}>
-            <span>Join</span>
+            <span>Waitlist</span>
           </button>
         )}
       </nav>

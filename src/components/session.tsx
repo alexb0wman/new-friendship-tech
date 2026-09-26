@@ -147,13 +147,7 @@ export function SessionController({
   const refresh = useCallback(async () => {
     const results = await Promise.allSettled([api<Me>("me"), api<RuntimeConfig>("config")]);
     if (results[0].status === "fulfilled") setMe(results[0].value);
-    else if (results[0].reason instanceof ApiError && results[0].reason.status === 401) setMe(null);
-    else {
-      setMe(null);
-      setToast(
-        results[0].reason instanceof Error ? results[0].reason.message : "Account is unavailable.",
-      );
-    }
+    else setMe(null);
     if (results[1].status === "fulfilled") setRuntime(results[1].value);
     setReady(true);
     setRevision((value) => value + 1);
