@@ -59,6 +59,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       line: "Places and guides for the city you are in.",
       items: [
         ["/" + citySlug, "Places", "The saved collection for this city."],
+        ["/settings#trip", "Your trip", "A name that expires when you leave. World ID required."],
         ["/travel", "Guides", "Short city stories, labeled as such."],
         ["/cities", "Cities", "Every published city, Tokyo first."],
       ],

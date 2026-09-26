@@ -58,7 +58,7 @@ export function TripCard({ city = "tokyo" }: { city?: string }) {
   if (!me) return null;
   const parent = config?.ensParent ?? "…";
   return (
-    <section className="settings-panel trip-card">
+    <section id="trip" className="settings-panel trip-card">
       <Eyebrow>YOUR TRIP IS A NAME / ENSv2 SEPOLIA</Eyebrow>
       <h2>{trip ? trip.name : "Activate your Tokyo trip."}</h2>
       <p className="muted">
