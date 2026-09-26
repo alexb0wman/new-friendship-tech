@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { Place } from "@/lib/types";
 import { useSession } from "./session";
 import { Arrow, Tag } from "./ui";
+import { Scramble } from "./scramble";
 export function PlaceCard({ place, onSaved }: { place: Place; onSaved?: () => void }) {
   const { api, me, login, notice } = useSession(),
     [saved, setSaved] = useState(!!place.saved),
@@ -29,9 +30,10 @@ export function PlaceCard({ place, onSaved }: { place: Place; onSaved?: () => vo
     <article className="place-card">
       <div className={"place-art art-" + place.artwork}>
         <Link
-          href={"/" + place.city + "/places/" + place.slug}
+          href={place.locked ? "/membership" : "/" + place.city + "/places/" + place.slug}
           className="art-link"
-          aria-label={"View " + place.name}
+          aria-label={place.locked ? "Sign up to see this place" : "View " + place.name}
+          onClick={place.locked ? (event) => { event.preventDefault(); void login(); } : undefined}
         >
           <img src={"/art/place-" + place.artwork + ".svg"} alt="" loading="lazy" />
           <span className="art-area">
@@ -57,10 +59,16 @@ export function PlaceCard({ place, onSaved }: { place: Place; onSaved?: () => vo
           </span>
           {place.fixture && <span className="fixture-label">Sample</span>}
         </div>
-        <Link href={"/" + place.city + "/places/" + place.slug}>
-          <h3>{place.name}</h3>
-        </Link>
-        <p>{place.note.split(" Fictional demo venue;")[0]}</p>
+        {place.locked ? (
+          <h3>
+            <Scramble length={14} />
+          </h3>
+        ) : (
+          <Link href={"/" + place.city + "/places/" + place.slug}>
+            <h3>{place.name}</h3>
+          </Link>
+        )}
+        <p>{place.locked ? "Sign up to see this place." : place.note.split(" Fictional demo venue;")[0]}</p>
         <div className="tags">
           {(place.reasons?.length ? place.reasons : place.tags.slice(0, 2)).map((tag) => (
             <Tag key={tag}>{tag}</Tag>

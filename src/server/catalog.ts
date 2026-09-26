@@ -33,6 +33,16 @@ export function rankPlaces(
     .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
     .map(({ score: _score, ...place }) => place);
 }
+function redact(place: Place): Place {
+  return {
+    ...place,
+    name: "", 
+    note: "",
+    mapUrl: "",
+    sourceUrl: "",
+    locked: true,
+  };
+}
 function placeDTO(row: typeof s.places.$inferSelect): Place {
   return {
     id: row.id,
@@ -99,12 +109,14 @@ export async function listPlaces(user: s.UserRow | null, params: URLSearchParams
     .limit(60);
   const saved = user ? await db.select().from(s.saves).where(eq(s.saves.userId, user.id)) : [];
   const savedIds = new Set(saved.map((row) => row.placeId));
+  const page = Math.max(Number(params.get("page") ?? 1) || 1, 1);
+  if (!paid && page > 1) return { items: [], access: "preview", locked: true, city };
   const items = rankPlaces(
     rows.map((row) => ({ ...placeDTO(row), saved: savedIds.has(row.id) })),
     user?.interests ?? [],
     user?.intents ?? [],
     user?.neighborhood ?? "",
-  );
+  ).map((place) => (paid ? place : redact(place)));
   return { items, access: paid ? "all_access" : "preview", city };
 }
 export async function getPlace(user: s.UserRow | null, slug: string) {
@@ -126,7 +138,9 @@ export async function getPlace(user: s.UserRow | null, slug: string) {
         .from(s.saves)
         .where(and(eq(s.saves.userId, user.id), eq(s.saves.placeId, place.id)))
     : [];
-  return { ...placeDTO(place), saved: !!saved };
+  const dto = { ...placeDTO(place), saved: !!saved };
+  const paid = user ? (await membership(user.id)).active : false;
+  return paid ? dto : redact(dto);
 }
 export async function listEvents(user: s.UserRow | null, city = "tokyo") {
   await publishedCity(city);

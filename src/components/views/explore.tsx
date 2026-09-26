@@ -19,7 +19,7 @@ import { CATEGORIES, NEIGHBORHOODS } from "@/lib/constants";
 import type { Place, EventItem } from "@/lib/types";
 
 export function ExploreView({ city }: { city: string }) {
-  const { me } = useSession(),
+  const { me, login } = useSession(),
     [category, setCategory] = useState("All"),
     [query, setQuery] = useState(""),
     [area, setArea] = useState("Anywhere in Tokyo"),
@@ -33,16 +33,15 @@ export function ExploreView({ city }: { city: string }) {
       <div className="city-hero">
         <div className="city-hero-copy">
           <Eyebrow>
-            <span className="status-dot" /> TOKYO, JAPAN / ALPHA
+            <span className="status-dot" /> TOKYO, JAPAN
           </Eyebrow>
           <h1>
-            Your city.
+            Tokyo,
             <br />
-            <span>A little closer.</span>
+            <span>saved by members.</span>
           </h1>
           <p>
-            Good places. Interesting people.
-            <br />A starting point for whatever comes next.
+            Places worth the trip, people worth meeting, and a plan for tonight.
           </p>
           <div className="hero-pills">
             <Link href="/tokyo/now">
@@ -70,8 +69,8 @@ export function ExploreView({ city }: { city: string }) {
       )}
       <div className="section-heading">
         <div>
-          <Eyebrow>THE CITY, CURATED</Eyebrow>
-          <h2>{me?.user.onboarded ? "A few places for you." : "Find your kind of place."}</h2>
+          <Eyebrow>PLACES</Eyebrow>
+          <h2>{me?.user.onboarded ? "Picked for you." : "Browse the collection."}</h2>
         </div>
         <p className="muted">
           {me?.membership.active ? "Your All Access collection" : "A taste of what is inside"}
@@ -138,15 +137,15 @@ export function ExploreView({ city }: { city: string }) {
       {data?.access === "preview" && (
         <div className="inline-membership">
           <div>
-            <Eyebrow>ONE MEMBERSHIP. EVERY PUBLISHED CITY.</Eyebrow>
-            <h2>There's more on the other side.</h2>
+            <Eyebrow>MEMBERS</Eyebrow>
+            <h2>The full list is for members.</h2>
             <p className="muted">
-              Unlock the full collection, your next connection, and plans for right now.
+              Sign up to see every place, the directory, and short notice plans.
             </p>
           </div>
-          <Link href="/membership" className="button lime">
-            All Access · $19 <Arrow />
-          </Link>
+          <button type="button" className="button lime" onClick={() => void login()}>
+            Page 2 · Sign up <Arrow />
+          </button>
         </div>
       )}
       <Modal open={filters} title="Find your corner of Tokyo" onClose={() => setFilters(false)}>
@@ -269,9 +268,9 @@ export function SavedView() {
   return (
     <>
       <PageTitle
-        eyebrow="YOUR LITTLE BLACK BOOK"
+        eyebrow="SAVED"
         title="Keep the good ones."
-        description="Your saved places travel with you. Your collection stays yours."
+        description="Places and events you have saved, in every city."
       />
       {loading ? (
         <Loading />

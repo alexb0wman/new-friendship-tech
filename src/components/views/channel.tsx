@@ -17,18 +17,18 @@ const SECTION_COPY: Record<
   },
   art: {
     eyebrow: "ART",
-    title: "Culture, introduced.",
-    blurb: "Creators, exhibitions, and stories worth your afternoon.",
+    title: "Art.",
+    blurb: "Exhibitions, creators, and galleries in the city.",
   },
   music: {
     eyebrow: "MUSIC",
-    title: "The sound of the city.",
-    blurb: "Playlists, artists, and shows from people whose taste you can trust.",
+    title: "Music.",
+    blurb: "Playlists, artists, and live shows.",
   },
   tech: {
     eyebrow: "TECH",
-    title: "People and opportunities.",
-    blurb: "Members, companies, and openings worth acting on.",
+    title: "Tech.",
+    blurb: "Meetups, companies, and open roles.",
   },
 };
 const KINDS: { key: ContentKind | "all"; label: string }[] = [
@@ -67,9 +67,11 @@ export function ChannelView({ section }: { section: ContentSection }) {
     });
     void reload();
   }
+  const photo = { art: "/photos/culture.webp", music: "/photos/night.webp", tech: "/photos/network.webp" }[section];
   return (
     <>
       <div className="city-hero">
+        {photo && <img className="channel-photo" src={photo} alt="" />}
         <div className="city-hero-copy">
           <Eyebrow>{copy.eyebrow}</Eyebrow>
           <h1>
@@ -78,8 +80,8 @@ export function ChannelView({ section }: { section: ContentSection }) {
             <span>{copy.blurb}</span>
           </h1>
           <p>
-            {data ? data.total : "A few"} {data?.total === 1 ? "entry" : "entries"} curated by the
-            network. Open the source, save what matters.
+            {data ? data.total : ""} {data?.total === 1 ? "entry" : "entries"}. Each links to its
+            source.
           </p>
         </div>
       </div>
@@ -176,13 +178,12 @@ export function TravelChannelView() {
             <span className="status-dot" /> TRAVEL
           </Eyebrow>
           <h1>
-            Where to go.
+            Travel.
             <br />
-            <span>A little closer.</span>
+            <span>Guides and places.</span>
           </h1>
           <p>
-            City guides from the network, plus the saved collection of {data?.total ?? "many"}{" "}
-            places across ten cities.
+            {data?.total ?? ""} guides, plus 1,836 saved places across ten cities.
           </p>
           <div className="hero-pills">
             <Link href="/tokyo">

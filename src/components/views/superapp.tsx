@@ -50,9 +50,9 @@ export function NetworkView() {
   return (
     <div className="stack">
       <PageTitle
-        eyebrow="Members' edition"
+        eyebrow="Members"
         title="Network."
-        description="Tokyo has the guide. New York, Los Angeles, and Paris are open."
+        description="Members who have chosen to be listed."
       />
       {!me?.user.onboarded && (
         <div className="note">
@@ -113,9 +113,9 @@ export function AtlasView() {
   return (
     <div className="stack">
       <PageTitle
-        eyebrow="Relationship intelligence"
+        eyebrow="Connections"
         title="Atlas."
-        description="Warm paths use accepted connections you can see."
+        description="Paths between members, built from accepted connections."
       />
       <div className="ask-row">
         <label htmlFor="from">From</label>
@@ -173,7 +173,7 @@ export function CitiesView() {
   const items = cities.data?.items ?? [];
   return (
     <div className="stack">
-      <PageTitle eyebrow="Cities" title="Cities." description="Tokyo, New York, Los Angeles, Paris." />
+      <PageTitle eyebrow="Cities" title="Cities." description="Every published city. Tokyo has the full guide." />
       <div className="city-grid">
         {items.map((city, index) => (
           <Link key={city.slug} className="city-card" href={city.published ? "/" + city.slug : "/cities"}>
@@ -192,9 +192,9 @@ export function EditorialView({ kind }: { kind: "intelligence" | "read" }) {
   return (
     <div className="stack">
       <PageTitle
-        eyebrow={kind === "intelligence" ? "Signal, not noise" : "Read"}
+        eyebrow={kind === "intelligence" ? "Intelligence" : "Read"}
         title={kind === "intelligence" ? "Intelligence." : "Read."}
-        description="Reviewed by hand. Nothing is published until it has a source."
+        description="Editorial from the network. Every piece links to its source."
       />
       <div className="chip-row">
         {TOPICS.map((item) => (
@@ -215,7 +215,7 @@ export function WhereView() {
   const items = events.data?.items ?? [];
   return (
     <div className="stack">
-      <PageTitle eyebrow="Where to be" title="Where to be." description="A save is a bookmark, not a ticket." />
+      <PageTitle eyebrow="Where to be" title="Where to be." description="Events this week. Saving an event is not a ticket." />
       {events.loading ? <Loading /> : null}
       {items.length === 0 ? (
         <Empty title="No verified events this week.">Nothing listed this week.</Empty>
@@ -242,9 +242,9 @@ export function StandingsView() {
   return (
     <div className="stack">
       <PageTitle
-        eyebrow="What you have given the network"
+        eyebrow="Standings"
         title="Standings."
-        description="This counts recorded accepted connections. It opens no doors and does not measure worth."
+        description="Accepted connections on record."
       />
       <div className="stat-row">
         <div><strong>{me ? accepted.length : "—"}</strong><span>Accepted connections you can see</span></div>
@@ -257,7 +257,7 @@ export function StandingsView() {
 export function TrustView() {
   return (
     <div className="stack">
-      <PageTitle eyebrow="Trust" title="Trust." description="A wallet, a name, or a host role. Payment does not buy a reputation." />
+      <PageTitle eyebrow="Trust" title="Trust." description="What each verification label means." />
       <div className="register">
         <div className="register-row"><strong>Wallet linked</strong><p className="muted">The account controls a verified wallet.</p></div>
         <div className="register-row"><strong>ENS linked</strong><p className="muted">A name currently resolves to that wallet. ENSv2 runs on Sepolia.</p></div>
@@ -272,7 +272,7 @@ export function TrustView() {
 export function InviteTreeView() {
   return (
     <div className="stack">
-      <PageTitle eyebrow="Invite tree" title="Invite Tree." description="Anyone can join. An invite records who referred you." />
+      <PageTitle eyebrow="Invite tree" title="Invite Tree." description="Who referred whom." />
       <Empty title="No invitation lineage yet.">Referral links will appear here after the first attributed signup.</Empty>
       <Link className="button" href="/onboarding">Join without an invitation</Link>
     </div>
@@ -282,7 +282,7 @@ export function InviteTreeView() {
 export function IntroductionsView() {
   return (
     <div className="stack">
-      <PageTitle eyebrow="Intros" title="Intros." description="Direct requests work now. A warm intro asks the mutual contact first." />
+      <PageTitle eyebrow="Intros" title="Intros." description="Connection requests and introductions." />
       <Link className="button" href="/requests">Open your requests</Link>
       <div className="note">Warm introductions are the next workflow on this same request service. They are not a second inbox.</div>
     </div>

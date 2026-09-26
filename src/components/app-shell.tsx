@@ -21,7 +21,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     {
       id: "network",
       label: "Network",
-      line: "People, paths, and the register.",
+      line: "Members, connections, and who is in town.",
       items: [
         ["/network", "Network", "Search people and browse the register."],
         ["/atlas", "Atlas", "Trace a warm path you are allowed to see."],
@@ -36,7 +36,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     {
       id: "events",
       label: "Events",
-      line: "What is on, and what you are doing now.",
+      line: "Events, member tables, and short notice plans.",
       items: [
         ["/" + citySlug + "/events", "Events", "Save a listing. A save is not a ticket."],
         ["/where-to-be", "Where to be", "The week in the city you selected."],
@@ -47,7 +47,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     {
       id: "intelligence",
       label: "Intelligence",
-      line: "Sourced stories. Nothing without a source.",
+      line: "Editorial from the network, with sources.",
       items: [
         ["/intelligence", "Intelligence", "The wire, filtered by topic."],
         ["/read", "Read", "Longer pieces from the same desk."],
@@ -56,7 +56,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     {
       id: "travel",
       label: "Travel",
-      line: "Places and guides for the city you are in.",
+      line: "Saved places and guides for each city.",
       items: [
         ["/" + citySlug, "Places", "The saved collection for this city."],
         ["/settings#trip", "Your trip", "A name that expires when you leave. World ID required."],
@@ -67,7 +67,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     {
       id: "culture",
       label: "Culture",
-      line: "Art, music, and tech in one membership.",
+      line: "Exhibitions, playlists, and opportunities.",
       items: [
         ["/art", "Art", "Creators, exhibitions, and culture stories."],
         ["/music", "Music", "Playlists, artists, and shows."],
@@ -77,7 +77,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     {
       id: "membership",
       label: "Membership",
-      line: "One plan. The rules are on the page.",
+      line: "One plan, every city. Terms and trust.",
       items: [
         ["/membership", "Membership", "All Access, thirty days, every city."],
         ["/onboarding", "Join", "Create an account and set your profile."],
@@ -165,9 +165,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       </main>
       {me && <ConciergeDrawer city={citySlug} />}
       <footer className="app-footer">
-        <span>Technology, creating new friendships.</span>
+        <span>New Friendship Tech, presented by Urconduit.</span>
         <span>
-          TOKYO ALPHA · <Link href="/privacy">Privacy</Link> · <Link href="/terms">Terms</Link>
+          Tokyo · <Link href="/privacy">Privacy</Link> · <Link href="/terms">Terms</Link>
         </span>
       </footer>
       {current && (

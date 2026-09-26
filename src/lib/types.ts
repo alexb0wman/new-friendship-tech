@@ -65,6 +65,7 @@ export interface Place {
   reviewedAt: string | null;
   reasons?: string[];
   saved?: boolean;
+  locked?: boolean;
 }
 export interface City {
   slug: string;

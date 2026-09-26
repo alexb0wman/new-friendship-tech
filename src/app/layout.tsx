@@ -4,7 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: { default: "New Friendship Tech", template: "%s · New Friendship Tech" },
   description:
-    "Your people. Your places. Your next move. One membership for every published city. Starting in Tokyo.",
+    "A network built on experiences that change your life. Members meet over dinners, shows, and trips. Tokyo first.",
   icons: { icon: "/favicon.svg" },
   robots: { index: false, follow: false },
 };
