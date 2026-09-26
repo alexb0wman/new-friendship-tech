@@ -11,7 +11,7 @@ const flows: PreviewItem[] = [
   {
     href: "/tokyo",
     title: "See",
-    line: "Restaurants, galleries, coffee, bars, and rooms we chose.",
+    line: "Landmarks, galleries, coffee, bars, and rooms we chose.",
     photo: "/photos/places.webp",
   },
   {
