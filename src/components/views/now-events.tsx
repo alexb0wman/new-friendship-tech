@@ -81,7 +81,7 @@ export function NowView({ city }: { city: string }) {
     <>
       <PageTitle
         eyebrow="A LITTLE SPONTANEITY GOES A LONG WAY"
-        title="What about right now?"
+        title="Now."
         description="Coffee. A walk. A work session. Put a simple plan out there."
         action={
           <button className="button lime" onClick={() => setOpen(true)}>

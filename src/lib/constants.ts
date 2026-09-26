@@ -3,7 +3,7 @@ export const PLAN = {
   key: "all_access_30d" as const,
   version: 1,
   name: "All Access",
-  usdCents: 1900,
+  usdCents: 3900,
   periodSeconds: 30 * 24 * 60 * 60,
   requestLimit: 10,
 };

@@ -247,17 +247,26 @@
     }
   }
   .bottom-nav {
-    padding: 6px 6px calc(6px + env(safe-area-inset-bottom));
-    background: #080808f2;
+    left: 12px;
+    right: 12px;
+    bottom: 10px;
+    width: auto;
+    padding: 4px 4px calc(4px + env(safe-area-inset-bottom));
+    background: #101010f5;
+    border: 1px solid #ffffff18;
+    border-radius: 18px;
     justify-content: space-between;
+    gap: 2px;
   }
   .bottom-nav button {
     position: relative;
     flex: 1;
     min-width: 0;
-    min-height: 48px;
-    border-radius: 12px;
-    font-size: 11px;
+    min-height: 46px;
+    border-radius: 14px;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: -0.03em;
     transition:
       color var(--dur-fast),
       background var(--dur-fast);

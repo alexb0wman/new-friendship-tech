@@ -8,13 +8,13 @@ const flows: PreviewItem[] = [
   {
     href: "/tokyo",
     title: "Places",
-    line: "1,836 saved places across ten cities.",
+    line: "Restaurants, galleries, coffee, bars, and rooms we chose.",
     photo: "/photos/places.webp",
   },
   {
     href: "/tokyo/tables",
-    title: "Tables",
-    line: "Small dinners hosted by members. Seats are approved.",
+    title: "Dine",
+    line: "Small dinners. Every seat is approved.",
     photo: "/photos/tables.webp",
   },
   {
@@ -25,13 +25,13 @@ const flows: PreviewItem[] = [
   },
   {
     href: "/network",
-    title: "Network",
+    title: "Connect",
     line: "The member directory and connection requests.",
-    photo: "/photos/network.webp",
+    photo: "/photos/night.webp",
   },
   {
     href: "/tokyo/now",
-    title: "Right now",
+    title: "Now",
     line: "Short notice plans. They expire within hours.",
     photo: "/photos/now.webp",
   },
@@ -43,11 +43,11 @@ const flows: PreviewItem[] = [
   },
 ];
 
-const ticker = ["Places", "Tables", "Trip names", "Network", "Right now", "Art", "Music", "Tech"];
+const ticker = ["Places", "Dine", "Trip names", "Connect", "Now", "Art", "Music", "Tech"];
 
 const steps = [
   ["Tell us what you're into.", "Choose your interests and what you'd like to do."],
-  ["Find your place, and your people.", "Explore a shortlist and connect with members who opt in."],
+  ["Open the shortlist.", "Restaurants, galleries, coffee, bars, and rooms, already chosen."],
   ["Make it real.", "Choose a place, agree a time, and take the connection offline."],
 ];
 
@@ -55,7 +55,7 @@ const benefits = [
   "Full access to every published city collection",
   "Recommendations tailored to your interests",
   "Member discovery and connection requests",
-  "Right now invitations and member tables",
+  "Now invitations and member dinners",
   "Saved places and connections that travel with you",
   "New cities included as they launch",
 ];
@@ -73,7 +73,7 @@ const faqs = [
     "Do I need a wallet to sign up?",
     "You can start with email. Paying for membership requires a supported funded wallet; the app guides you through the available options.",
   ],
-  ["Does membership renew automatically?", "No. You buy 30 days of access and renew manually."],
+  ["Can I cancel?", "Yes. Cancel anytime. Access runs in 30-day periods until checkout opens."],
   [
     "Are events and meals included?",
     "Membership helps you discover and connect. Separately ticketed events, venue charges, meals, and drinks are paid separately.",
@@ -113,8 +113,7 @@ export function HomePage() {
         </h1>
         <div className="hero-foot load-fade">
           <p>
-            Members meet over dinners, shows, and trips. One membership covers every city we
-            publish.
+            Become a member today and unlock exclusive early access.
           </p>
           <div className="button-row">
             <Link href="/tokyo" className="button lime">
@@ -155,32 +154,22 @@ export function HomePage() {
       <section className="home-foundation" aria-labelledby="foundation-title">
         <Reveal as="div" variant="words" className="foundation-copy">
           <h2 id="foundation-title">
-            <SplitWords text="Built from real-world connections." />
+            <SplitWords text="A shortlist, not a feed." />
           </h2>
           <p>
-            New Friendship Tech brings together emerging technology, culture, and community, through
-            curated events and the connections that continue afterwards.
+            Restaurants, galleries, coffee, bars, work rooms, and shows are hand selected. Members
+            do not add spots. This list stays curated.
           </p>
         </Reveal>
-        <dl className="foundation-figures">
-          <Reveal as="div" variant="mask">
-            <dt>Cumulative attendees across our events</dt>
-            <dd>60K+</dd>
-          </Reveal>
-          <Reveal as="div" variant="mask" delay={120}>
-            <dt>Newsletter subscribers</dt>
-            <dd>~60K</dd>
-          </Reveal>
-        </dl>
       </section>
 
       {/* 3. What members do: hover index with a pointer-following photo */}
       <section id="work" className="home-index" aria-labelledby="index-title">
         <div className="home-section-head">
           <Reveal as="h2" variant="words" id="index-title">
-            <SplitWords text="What members do here." />
+            <SplitWords text="The shortlist." />
           </Reveal>
-          <p>One account opens all of it. Previews are free.</p>
+          <p>Dinners, galleries, trips, and the people in town.</p>
         </div>
         <PreviewList items={flows} label="What you can do" />
       </section>
@@ -261,8 +250,8 @@ export function HomePage() {
           <div className="membership-card-head">
             <h3>All Access</h3>
             <p className="membership-price">
-              <strong>$19</strong>
-              <span>/ 30 days</span>
+              <strong>$39</strong>
+              <span>/ mo</span>
             </p>
           </div>
           <ul>
@@ -274,8 +263,8 @@ export function HomePage() {
             ))}
           </ul>
           <p className="muted small">
-            Up to 10 new connection requests per access period. Separately ticketed events, meals,
-            and drinks are not included. Renew manually.
+            $39 a month. Cancel anytime. Separately ticketed events, meals, and drinks are not
+            included.
           </p>
           <div className="button-row">
             <Link href="/membership" className="button lime">

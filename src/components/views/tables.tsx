@@ -193,7 +193,7 @@ export function TablesView({ city }: { city: string }) {
     <>
       <PageTitle
         eyebrow="THE DINNER TABLE AS A TEMPORARY NAME"
-        title="Tables."
+        title="Dine."
         description="Small meals with verified humans. Every table is a name; every seat is approved."
         action={
           <button className="button lime" onClick={() => setOpen(true)} disabled={!trip}>

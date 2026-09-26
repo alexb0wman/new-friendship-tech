@@ -51,12 +51,12 @@ export function NetworkView() {
     <div className="stack">
       <PageTitle
         eyebrow="Members"
-        title="Network."
+        title="Connect."
         description="Members who have chosen to be listed."
       />
       {!me?.user.onboarded && (
         <div className="note">
-          Personalize your Network. A few choices tune places, people, and Right now.{" "}
+          Personalize Connect. A few choices tune places, people, and Now.{" "}
           <Link href="/onboarding">Start</Link>
         </div>
       )}

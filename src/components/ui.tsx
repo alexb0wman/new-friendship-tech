@@ -104,7 +104,7 @@ export function Paywall() {
       <p>
         All published city guides. Relevant people. Plans for right now.
         <br />
-        All Access is $19 for 30 days.
+        All Access is $39 a month. Cancel anytime.
       </p>
       <Link className="button lime" href="/membership">
         Get All Access <Arrow />

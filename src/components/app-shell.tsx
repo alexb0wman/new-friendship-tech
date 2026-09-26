@@ -19,13 +19,16 @@ export function AppShell({ children, bleed = false }: { children: ReactNode; ble
   const [openBucket, setOpenBucket] = useState<string | null>(null);
   const buckets = [
     {
-      id: "network",
-      label: "Network",
-      line: "Members, connections, and who is in town.",
+      id: "connect",
+      label: "Connect",
+      short: "Connect",
+      line: "People, introductions, and the desk.",
       items: [
-        ["/network", "Network", "Search people and browse the register."],
+        ["/network", "People", "Search members and browse the register."],
         ["/atlas", "Atlas", "Trace a warm path you are allowed to see."],
         ["/introductions", "Intros", "Send a request, or answer one waiting for you."],
+        ["/intelligence", "Intelligence", "The wire, filtered by topic."],
+        ["/read", "Read", "Longer pieces from the same desk."],
         ["/companies", "Companies", "Affiliations members have written themselves."],
         ["/capital", "Capital", "Founders and investors, not a deal room."],
         ["/cities", "Cities", "Where members actually gather."],
@@ -40,21 +43,12 @@ export function AppShell({ children, bleed = false }: { children: ReactNode; ble
       items: [
         ["/" + citySlug + "/events", "Events", "Save a listing. A save is not a ticket."],
         ["/where-to-be", "Where to be", "The week in the city you selected."],
-        ["/" + citySlug + "/now", "Right now", "Post a plan that expires on its own."],
+        ["/" + citySlug + "/now", "Now", "A plan that expires on its own."],
         [
           "/" + citySlug + "/tables",
-          "Tables",
-          "Small meals with verified humans. Every seat is approved.",
+          "Dine",
+          "Small meals. Every seat is approved.",
         ],
-      ],
-    },
-    {
-      id: "intelligence",
-      label: "Intelligence",
-      line: "Editorial from the network, with sources.",
-      items: [
-        ["/intelligence", "Intelligence", "The wire, filtered by topic."],
-        ["/read", "Read", "Longer pieces from the same desk."],
       ],
     },
     {
@@ -62,7 +56,7 @@ export function AppShell({ children, bleed = false }: { children: ReactNode; ble
       label: "Travel",
       line: "Saved places and guides for each city.",
       items: [
-        ["/" + citySlug, "Places", "The saved collection for this city."],
+        ["/" + citySlug, "Places", "Restaurants, galleries, and rooms we chose."],
         ["/settings#trip", "Your trip", "A name that expires when you leave. World ID required."],
         ["/travel", "Guides", "Short city stories, labeled as such."],
         ["/cities", "Cities", "Every published city."],
@@ -81,9 +75,10 @@ export function AppShell({ children, bleed = false }: { children: ReactNode; ble
     {
       id: "membership",
       label: "Membership",
+      short: "Member",
       line: "One plan, every city. Terms and trust.",
       items: [
-        ["/membership", "Membership", "All Access, thirty days, every city."],
+        ["/membership", "Membership", "All Access, $39 a month, every city."],
         ["/onboarding", "Join", "Create an account and set your profile."],
         ["/trust", "Trust", "What a label means, and what it does not."],
         ["/policy", "Member policy", "Consent, blocks, and reports."],
@@ -145,7 +140,7 @@ export function AppShell({ children, bleed = false }: { children: ReactNode; ble
           new friendship
           <br />
           <strong>
-            tech<span className="wordmark-dot">™</span>
+            tech
           </strong>
         </Link>
         <button className="city-switch" onClick={() => setCityOpen(true)}>
@@ -244,7 +239,7 @@ export function AppShell({ children, bleed = false }: { children: ReactNode; ble
             aria-expanded={openBucket === bucket.id}
             onClick={() => setOpenBucket(openBucket === bucket.id ? null : bucket.id)}
           >
-            <span>{bucket.label}</span>
+            <span>{bucket.short ?? bucket.label}</span>
           </button>
         ))}
       </nav>
@@ -295,9 +290,7 @@ export function AppShell({ children, bleed = false }: { children: ReactNode; ble
             </Link>
           ))}
         </div>
-        <div className="note">
-          Tokyo is first. More cities will appear here as their collections are ready.
-        </div>
+
       </Modal>
     </div>
   );
