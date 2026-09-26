@@ -24,12 +24,6 @@ const flows: PreviewItem[] = [
     photo: "/photos/trip.webp",
   },
   {
-    href: "/network",
-    title: "Connect",
-    line: "The member directory and connection requests.",
-    photo: "/photos/night.webp",
-  },
-  {
     href: "/tokyo/now",
     title: "Meet",
     line: "Short notice plans. They expire within hours.",
@@ -40,6 +34,12 @@ const flows: PreviewItem[] = [
     title: "Discover",
     line: "Art, music, and what the desk is paying attention to.",
     photo: "/photos/culture.webp",
+  },
+  {
+    href: "/network",
+    title: "Connect",
+    line: "The member directory and connection requests.",
+    photo: "/photos/night.webp",
   },
 ];
 
