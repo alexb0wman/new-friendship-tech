@@ -43,7 +43,7 @@ const flows: PreviewItem[] = [
   },
 ];
 
-const ticker = ["Places", "Dine", "Trip names", "Connect", "Now", "Art", "Music", "Tech"];
+const ticker = ["Travel", "Music", "Art", "Fashion", "Culture", "Technology"];
 
 const steps = [
   ["Tell us what you're into.", "Choose your interests and what you'd like to do."],
