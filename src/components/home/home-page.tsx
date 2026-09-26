@@ -119,10 +119,18 @@ export function HomePage() {
           <span className="status-dot pulse" /> Tokyo alpha
         </p>
         <h1 id="home-title" className="hero-title load-words">
-          <SplitWords text="A network" />
-          <Pill src="/photos/night.webp" index={0} /> <SplitWords text="built on life" offset={2} />{" "}
-          <SplitWords text="changing" offset={5} />
-          <Pill src="/photos/trip.webp" index={1} /> <SplitWords text="experiences." offset={6} />
+          {"A network built on life changing experiences.".split(" ").map((word, index) => (
+            <span key={word + index}>
+              <span className="word-mask">
+                <span className="word" style={{ ["--i" as string]: index }}>
+                  {word}
+                </span>
+              </span>
+              {index === 1 || index === 4 ? (
+                <Pill src={index === 1 ? "/photos/night.webp" : "/photos/trip.webp"} index={index === 1 ? 0 : 1} />
+              ) : null}
+            </span>
+          ))}
         </h1>
         <div className="hero-foot load-fade">
           <p>Become a member today and unlock exclusive early access.</p>
