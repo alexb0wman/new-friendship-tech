@@ -12,10 +12,22 @@ const flows: PreviewItem[] = [
     photo: "/photos/places.webp",
   },
   {
+    href: "/tokyo/tables",
+    title: "Dine",
+    line: "Small dinners. Every seat is approved.",
+    photo: "/photos/tables.webp",
+  },
+  {
     href: "/travel",
     title: "Explore",
     line: "City guides for a stay. Where the days actually go.",
     photo: "/photos/trip.webp",
+  },
+  {
+    href: "/network",
+    title: "Connect",
+    line: "The member directory and connection requests.",
+    photo: "/photos/night.webp",
   },
   {
     href: "/tokyo/now",
