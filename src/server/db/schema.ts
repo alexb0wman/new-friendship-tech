@@ -28,6 +28,7 @@ import type {
   RequestStatus,
   TripStatus,
 } from "@/lib/types";
+import type { RpContextDTO } from "@/server/world/adapter";
 
 const time = (name: string) => timestamp(name, { withTimezone: true, mode: "date" });
 export const users = pgTable(
@@ -54,7 +55,10 @@ export const users = pgTable(
     createdAt: time("created_at").notNull().defaultNow(),
     updatedAt: time("updated_at").notNull().defaultNow(),
   },
-  (t) => [index("users_discovery_idx").on(t.city, t.visible, t.suspended)],
+  (t) => [
+    index("users_discovery_idx").on(t.city, t.visible, t.suspended),
+    uniqueIndex("users_world_identity_unique").on(t.worldAgentIssuer, t.worldAgentSub),
+  ],
 );
 
 export const cities = pgTable("cities", {
@@ -429,6 +433,23 @@ export const humanProofs = pgTable(
   },
   (t) => [index("human_proofs_lookup_idx").on(t.action, t.city, t.nullifier)],
 );
+/** Server-issued, account-bound, single-use trip verification requests. */
+export const worldProofRequests = pgTable(
+  "world_proof_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    signal: text("signal").notNull(),
+    payloadDigest: text("payload_digest").notNull(),
+    rpContext: jsonb("rp_context").$type<RpContextDTO>().notNull(),
+    expiresAt: time("expires_at").notNull(),
+    consumedAt: time("consumed_at"),
+    createdAt: time("created_at").notNull().defaultNow(),
+  },
+  (t) => [index("world_proof_requests_user_idx").on(t.userId, t.expiresAt)],
+);
 export const trips = pgTable(
   "trips",
   {
@@ -497,6 +518,9 @@ export const gatherings = pgTable(
       .default("none"),
     splitTotalCents: integer("split_total_cents"),
     splitCurrency: text("split_currency"),
+    splitChainId: integer("split_chain_id"),
+    splitToken: text("split_token"),
+    splitStartedAt: time("split_started_at"),
     chainRecordTx: text("chain_record_tx"),
     chainVerifiedAt: time("chain_verified_at"),
     createdAt: time("created_at").notNull().defaultNow(),
@@ -520,6 +544,7 @@ export const agentApprovals = pgTable(
     summary: text("summary").notNull(),
     nonce: text("nonce").notNull().unique(),
     codeVerifier: text("code_verifier").notNull(),
+    rpContext: jsonb("rp_context").$type<RpContextDTO>(),
     status: text("status").$type<ApprovalStatus>().notNull().default("pending"),
     worldSub: text("world_sub"),
     authTime: time("auth_time"),
@@ -553,6 +578,10 @@ export const gatheringAttendees = pgTable(
     payAddress: text("pay_address"),
     paidTx: text("paid_tx"),
     paidVerifiedAt: time("paid_verified_at"),
+    splitPayer: text("split_payer"),
+    splitMinBlock: numeric("split_min_block", { precision: 78, scale: 0 }),
+    splitSettlementKey: text("split_settlement_key").unique(),
+    splitErrorCode: text("split_error_code"),
     createdAt: time("created_at").notNull().defaultNow(),
     updatedAt: time("updated_at").notNull().defaultNow(),
   },

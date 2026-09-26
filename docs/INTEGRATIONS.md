@@ -8,57 +8,49 @@ Test email login, external wallet login, logout, refresh, expired tokens, wallet
 
 Official reference: https://docs.privy.io/
 
-## ENSv2 / Sepolia
+## ENS mainnet and ENSv2 Sepolia
 
-Implemented in `src/server/ens.ts`:
+Existing ENS names use Ethereum mainnet by default (`ENS_CHAIN_ID=1`, `ENS_MAINNET_RPC_URL`). Sepolia linking remains selectable with chain 11155111. Fresh normalized resolution must point to a verified linked wallet. Description writes use durable account, chain, sender, resolver and calldata intents, wallet signatures, receipt verification and independent record reads.
 
-- ENSIP normalization through viem.
-- Chain-ID verification and fresh name/address/resolver reads.
-- Linking only a name resolving to a Privy-verified wallet.
-- Private app lookup by a normalized name.
-- Description text-record preparation after `simulateContract` checks actual resolver permissions.
-- Wallet-signed transaction submission in settings, followed by receipt checking and fresh resolution.
+The trip namespace remains ENSv2 on Sepolia. **ENSv2 mainnet has not launched.** Configure `ENS_PARENT_NAME`, two distinct funded operator/concierge keys, and `ENS_SEPOLIA_RPC_URL`; run `npm run ens:bootstrap`, set its generated registry/resolver addresses, then run `npm run ens:smoke`. Live execution checks chain identity, deployed code and registry mounts. The worker persists transaction stages and reconciles pending submissions. Concierge permissions are restricted to the two approved record keys. Production periodically expires trips; expired trips cannot authorize new actions.
 
-Configure `ENS_ENABLED`, `ENS_SEPOLIA_RPC_URL`, and optionally `ENS_WRITE_ENABLED`. Configure the public RPC URL only if a public/browser-safe endpoint is intended. Use viem's current Sepolia chain contracts; do not paste an old universal resolver address into the integration. No private contact or member graph is written on-chain.
+Nothing in this branch establishes that bootstrap or a real registration has already run. Record real Sepolia receipts in `docs/EVIDENCE.md`. A simulated receipt is never accepted as evidence.
 
-**Namespace and subnames (ENSv2 + World drop):** `src/server/ens-v2/` provisions and operates a parent namespace on the Sepolia beta. `scripts/ens-bootstrap.ts` deploys the app resolver and the parent and city registries through the Verifiable Factory, mounts them, registers the anchors, grants the concierge its two setter roles and writes the ENSIP-26 records. Trips are tokenised, non-transferable subnames in the city registry with the departure date as expiry; tables are data-only subnames under `tables.<city>` written by the concierge; every write is proven by receipt and re-read (`ens-v2/proof.ts`). `docs/ENS-WORLD-DESIGN.md` records the decisions. **Still required:** run the bootstrap with a funded operator wallet, run `npm run ens:smoke`, and fill `docs/EVIDENCE.md` with the resulting hashes. The demo and the test suite run on a simulated chain; nothing here has been executed against Sepolia yet.
+References: https://ens.domains/ensv2 and https://docs.ens.domains/
 
-CCIP Read is disabled server-side. Off-chain gateway records fail with an explicit unsupported/error state. Supporting them later needs an SSRF-aware gateway strategy, timeouts and response validation, not a blanket server fetch.
+## World ID production
 
-Record writes now create a server-owned, twenty-minute intent containing account, normalized name, source wallet, resolver, chain, exact calldata and description. Confirmation requires a successful receipt, matching sender/recipient/input, zero native value, the correct chain, unchanged resolver and an independent text-record re-read. A unique transaction hash cannot confirm multiple intents. Local proof tests cover altered transactions; actual ENSv2 RPC and wallet execution still need live verification.
+Both trip activation and concierge approval use IDKit v4 with server-signed RP context. Configure `WORLD_APP_ID`, `WORLD_RP_ID`, `WORLD_RP_SIGNING_KEY`, `WORLD_ENVIRONMENT=production`, and the two action scopes (`trip-activate`, `concierge-approve` by default). Sandbox OIDC credentials are no longer required for the production approval path.
 
-Official references: https://docs.ens.domains/ and the current event sponsor page.
+The backend persists expiring, account-bound proof requests, binds the exact action and payload to their signal, validates the nonce and production environment, and requires a successful Proof of Human credential from the official v4 verifier. Weaker credentials and legacy proof/nullifier domains are not silently substituted. Trip proofs enforce one active human per city. Approvals require the linked human, recheck authorization and expiry under a database lock, and consume the proof with the protected action in one transaction. Denied, expired and replayed approvals do not execute business or blockchain writes.
 
-## World ID
+Local demo adapters remain available only in local demo mode. `ENS_SIMULATED=true` outside demo now fails rather than giving a production account a simulated proof. Real proof acceptance and mobile World App return still require operator testing.
 
-Two integrations, both behind `WorldAdapter` (`src/server/world/`), simulated in demo mode.
+References: https://docs.world.org/world-id/idkit/integrate and https://docs.world.org/agents/human-in-the-loop/integrate
 
-IDKit (trip activation): the backend signs `rp_context` with `WORLD_RP_SIGNING_KEY`, the widget requests Proof of Human (passport as the alternative) with the city as signal, the backend forwards the result to `POST /api/v4/verify/{rp_id}`, checks the environment and the signal hash, and stores the nullifier as `NUMERIC(78,0)`. One human, one active trip per city. Configure `WORLD_APP_ID`, `WORLD_RP_ID`, `WORLD_RP_SIGNING_KEY`, `WORLD_ENVIRONMENT` (`staging` with the simulator).
+## 0G Pay
 
-World ID for Agents (approvals): OIDC against `WORLD_AGENTS_ISSUER` with PKCE, `prompt=login` and `max_age=0` for a fresh step-up; the callback validates the RS256 ID token, nonce, subject and `auth_time` before the executor runs. Register the client at the sandbox portal with a public HTTPS redirect URI ending in `/api/world/agent/callback`; localhost is refused, so local development uses the simulated adapter. Debriefs: `docs/WORLD-DEBRIEF-IDKIT.md`, `docs/WORLD-DEBRIEF-AGENTS.md`.
+Membership checkout uses the official TokenFlight HTTP API underlying the pinned 0G Pay SDK, without importing its broken browser `ethers` dependency. The supported route is **19 native USDC on Base → quoted native 0G to the merchant on chain 16661**. Routing fees affect the quoted 0G output. Wallet gas is additional. This is not a USDC settlement on 0G or an arbitrary multi-asset checkout.
 
-Official references: https://docs.world.org/world-id/idkit/integrate and https://sandbox.auth.world.org/docs
+Configure `PAYMENT_RECIPIENT` (EOA treasury), `PAYMENT_SOURCE_RPC_URL` (Base), `PAYMENT_RPC_URL` (0G), `PAYMENT_PROVIDER=0g-pay`, and `CHECKOUT_ENABLED=true`. Both confirmation counts default to a minimum of 12. The destination RPC must support call traces when settlement uses an internal native transfer. `TOKENFLIGHT_INTEGRATOR_ID` is optional fee attribution, if assigned by the provider.
 
-## 0G Pay — the critical remaining integration
+Quotes and permitted wallet requests are server-owned, stored with immutable source/route/destination obligations and expiry. The UI asks the wallet to approve bounded token spending and send the exact built transaction. A browser hash is only a reconciliation hint. The worker binds the provider order to the stored quote, route and payer, verifies the Base source transaction independently, and verifies the canonical destination native transfer/trace and configured confirmation depth. A successful browser callback or provider status alone cannot grant membership. Duplicate settlement evidence cannot pay another invoice. Late or interrupted payments retain references for reconciliation.
 
-The exact SDK is installed and a typed `OgPayTrigger` component exists. The live checkout does **not mount it yet**. The component is a provider UI boundary, not a merchant settlement implementation. Current public SDK configuration uses developer mode, a recipient, crypto methods, `EXACT_INPUT`, and an output amount. Resolve the provider's actual USD-to-settlement quote semantics before wiring the amount prop; do not label a floating-output route a guaranteed $19 merchant receipt.
+Unsupported provider responses or settlement proofs fail closed. Real provider availability, trace support and a real purchase remain unverified until exercised with operator-controlled funds. Do not claim checkout is live from a passing configuration check.
 
-`OgPayMerchantAdapter.quote()` and `.inspect()` intentionally return `PAYMENT_ROUTE_UNVERIFIED`. `checkoutStatus()` stays closed even if an environment flag is changed. Real invoices cannot accidentally fall back to the demo adapter.
+References: https://embed.tokenflight.ai/reference/api-client and the pinned SDK source.
 
-Complete these concrete tasks:
+## USDC table splits
 
-1. Obtain the official merchant/developer route contract and supported mainnet chain/asset/recipient configuration. Confirm the merchant recipient can actually be set in the chosen server quote path. The public wallet-funding route is not automatically a merchant checkout route.
-2. Implement server-owned quotes containing source account, quote/order identifier, destination chain, token/native asset, recipient, integer base-unit amount, allowed fee/slippage policy and expiry. Never accept a browser price.
-3. Pass the exact server quote into the provider UI using the documented merchant invocation. Extract callback source/order hints from the real typed callback schema, not guessed fields.
-4. Implement adapter inspection: retrieve the provider order through an authenticated or independently authenticated route; verify the source wallet/order/quote relationship; independently read destination receipts and the relevant transfer/order event on the intended chain. Validate native-value versus ERC20 log behavior explicitly.
-5. For sponsored/relayed funding, verify the authenticated user's source-wallet relationship according to the provider's actual mechanism. Do not naively require the destination transaction sender to equal the user wallet.
-6. Define provider finality requirements, reorganization handling, quote-expiry behavior and refund/manual-review policy. Preserve late-payment references for reconciliation; never tell a customer to pay again simply because a callback arrived late.
-7. Test wrong chain/token/recipient/amount/order, callback before settlement, app restart, provider timeout, duplicate settlement across invoices, late payment and interrupted mobile return. Use the existing domain tests as a base, then add adapter integration tests with genuine provider fixtures.
-8. Mount the provider component only after these checks. Enable the server checkout predicate from verified configuration. Make one explicitly authorized small real purchase with an operator-controlled wallet; independently inspect the merchant receipt and exercise the documented refund/support path.
+Table bills use direct wallet-signed native USDC on Base by default, with Ethereum supported through `SPLIT_NETWORK=ethereum`. Configure `SPLIT_RPC_URL`; retain `SPLIT_BASE_RPC_URL` / `SPLIT_ETHEREUM_RPC_URL` for existing unpaid obligations after switching networks. This is separate from the membership 0G Pay route.
 
-The code exposes no action to authorize a transfer automatically. A wallet confirmation remains the user's explicit payment authorization. The application has no recurring debit approval and no Stripe integration.
+Each share freezes its recipient, chain, USDC token and amount; preparation binds the payer and minimum source block. The table cannot change membership after splitting. The verifier checks canonical finalized receipts, exact sender/calldata/token/amount and matching transfer logs. Payments predating the obligation and reused transactions are rejected. Existing unfinished legacy splits without mainnet obligations require review; they are not silently upgraded.
 
-Official reference: https://pay.0g.ai/docs
+Reference: https://developers.circle.com/stablecoins/usdc-contract-addresses
+
+## Launch configuration
+
+Use `docs/LIVE-LAUNCH-SPEC.md` for the supported release and activation sequence. `npm run integrations:check` and authenticated `GET /api/admin/integrations` report missing configuration without printing secrets. Production rejects simulated adapters and ephemeral storage. The first-two-wallet automatic membership grant is removed. App and worker must run the same migrations and release.
 
 ## KMS and Secret Manager
 

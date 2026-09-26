@@ -1,10 +1,12 @@
 "use client";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { BadgeCheck, ShieldAlert, Clock } from "lucide-react";
 import { ApiError, useResource, useSession } from "./session";
 import { Arrow, ErrorBox, Modal } from "./ui";
 import type { ApprovalDTO } from "@/lib/types";
+const IdkitWidget = dynamic(() => import("./idkit-widget"), { ssr: false });
 
 const TERMINAL: Record<string, { title: string; body: string }> = {
   consumed: { title: "Approved.", body: "The concierge did it. Nothing else was touched." },
@@ -28,7 +30,7 @@ export function approvalErrorCopy(error: unknown) {
 }
 /**
  * One approval, end to end: the summary of what will happen, the World ID step (a link to the
- * sandbox in production, an approve/deny panel in the demo), a poll while pending, and a plain
+ * World App in production, an approve/deny panel in the demo), a poll while pending, and a plain
  * terminal state. The action only happens server-side, after the backend validated the identity.
  */
 export function ApprovalModal({
@@ -44,10 +46,12 @@ export function ApprovalModal({
   const [current, setCurrent] = useState<ApprovalDTO | null>(approval);
   const [error, setError] = useState<Error | null>(null);
   const [busy, setBusy] = useState(false);
+  const [proofOpen, setProofOpen] = useState(false);
   const resolved = useRef(false);
   useEffect(() => {
     setCurrent(approval);
     setError(null);
+    setProofOpen(false);
     resolved.current = false;
   }, [approval]);
   useEffect(() => {
@@ -89,6 +93,22 @@ export function ApprovalModal({
       setBusy(false);
     }
   }
+  async function deny() {
+    if (!current) return;
+    setBusy(true);
+    try {
+      setCurrent(
+        await api<ApprovalDTO>("world/agent/deny", {
+          method: "POST",
+          body: JSON.stringify({ approvalId: current.id }),
+        }),
+      );
+    } catch (caught) {
+      setError(new Error(approvalErrorCopy(caught)));
+    } finally {
+      setBusy(false);
+    }
+  }
   const terminal = current ? TERMINAL[current.status] : null;
   return (
     <Modal open={!!approval} title="Approve with World ID" onClose={onClose}>
@@ -109,8 +129,8 @@ export function ApprovalModal({
               <div className="sim-panel" role="group" aria-label="Simulated World ID app">
                 <p className="eyebrow">SIMULATED WORLD ID APP · LOCAL DEMO</p>
                 <p className="muted small">
-                  In production this opens the World ID sandbox for a fresh sign-in. Decline to see
-                  the failure path: the request never lands.
+                  The live flow opens World App for a proof bound to this exact request. Declining
+                  cancels the request without executing it.
                 </p>
                 <div className="button-row">
                   <button
@@ -132,21 +152,24 @@ export function ApprovalModal({
             ) : (
               <div className="sim-panel">
                 <p className="muted small">
-                  Open World ID, sign in fresh, and come back. This page keeps checking.
+                  Confirm this exact request in World App. Your proof is checked before the action
+                  runs.
                 </p>
                 <div className="button-row">
-                  {current.url ? (
-                    <a
+                  {current.proofRequest ? (
+                    <button
                       className="button lime"
-                      href={current.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                      disabled={busy}
+                      onClick={() => setProofOpen(true)}
                     >
-                      Open World ID <Arrow />
-                    </a>
+                      Approve with World ID <Arrow />
+                    </button>
                   ) : (
                     <span className="muted small">Waiting for World ID…</span>
                   )}
+                  <button className="button ghost" disabled={busy} onClick={() => void deny()}>
+                    Decline
+                  </button>
                   <span className="time-left">
                     <Clock size={14} /> expires {new Date(current.expiresAt).toLocaleTimeString()}
                   </span>
@@ -165,6 +188,45 @@ export function ApprovalModal({
                 <p className="muted small">{terminal?.body}</p>
               </div>
             </div>
+          )}
+          {current.status === "pending" && current.proofRequest && (
+            <IdkitWidget
+              open={proofOpen}
+              onOpenChange={setProofOpen}
+              appId={current.proofRequest.app_id}
+              action={current.proofRequest.action}
+              rpContext={current.proofRequest}
+              environment={
+                current.proofRequest.environment === "simulated"
+                  ? "staging"
+                  : current.proofRequest.environment
+              }
+              credential="human"
+              signal={current.proofRequest.signal}
+              requireUserPresence
+              description={current.summary}
+              onVerify={async (proof) => {
+                setBusy(true);
+                try {
+                  setCurrent(
+                    await api<ApprovalDTO>("world/agent/verify", {
+                      method: "POST",
+                      body: JSON.stringify({ approvalId: current.id, proof }),
+                    }),
+                  );
+                  setProofOpen(false);
+                } catch (caught) {
+                  setError(new Error(approvalErrorCopy(caught)));
+                  throw caught;
+                } finally {
+                  setBusy(false);
+                }
+              }}
+              onError={(code) => {
+                if (code !== "failed_by_host_app")
+                  setError(new Error("World ID could not complete this approval: " + code));
+              }}
+            />
           )}
           {config?.ensParent && current.action !== "agent.link" && (
             <p className="muted small mono">

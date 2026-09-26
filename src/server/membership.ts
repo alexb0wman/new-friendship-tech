@@ -3,6 +3,7 @@ import { PLAN } from "@/lib/constants";
 import { getDb, type Tx, type Database } from "./db";
 import { entitlements, connectionRequests } from "./db/schema";
 import { invariant } from "./errors";
+import { previewEns } from "./config";
 
 export function nextPeriod(now: Date, paidThrough?: Date | null) {
   const startsAt = new Date(Math.max(now.getTime(), paidThrough?.getTime() ?? 0));
@@ -56,7 +57,7 @@ export async function membership(userId: string, db?: Tx | Database, now = new D
   };
 }
 export async function requireTripAccess(userId: string, db?: Tx | Database) {
-  if (process.env.ENS_SIMULATED === "true") return;
+  if (previewEns()) return;
   await requireMember(userId, db);
 }
 export async function requireMember(userId: string, db?: Tx | Database) {

@@ -1,13 +1,11 @@
 import { PrivyClient } from "@privy-io/node";
 import { SignJWT, jwtVerify } from "jose";
 import { randomBytes } from "node:crypto";
-import { readFile, writeFile } from "node:fs/promises";
 import { eq, and, inArray, notInArray } from "drizzle-orm";
 import { getDb } from "./db";
-import { users, walletLinks, ensIdentities, entitlements } from "./db/schema";
+import { users, walletLinks, ensIdentities } from "./db/schema";
 import { applyWrite } from "./db/write";
-import { config, isDemo, previewEns } from "./config";
-import { membership } from "./membership";
+import { config, isDemo } from "./config";
 import { AppError, invariant } from "./errors";
 import { DEMO_ACTORS } from "./db/seed";
 
@@ -99,36 +97,7 @@ export async function actorFromRequest(request: Request, required = true) {
     });
   }
   invariant(user && !user.suspended, "FORBIDDEN", "This account is unavailable.", 403);
-  if (previewEns() && user.authSubject) await grantFirstWalletAccounts(user.id, user.authSubject);
   return user;
-}
-const previewFile = () =>
-  process.env.PREVIEW_ACCESS_FILE || "/home/alex_voyager_cx/nftech-preview-access.json";
-async function grantFirstWalletAccounts(userId: string, authSubject: string) {
-  if ((await membership(userId)).active) return;
-  const addresses = await syncVerifiedWallets(userId, authSubject);
-  const wallet = addresses[0];
-  if (!wallet) return;
-  let allowed: string[] = [];
-  try {
-    allowed = JSON.parse(await readFile(previewFile(), "utf8"));
-  } catch {
-    allowed = [];
-  }
-  if (!allowed.includes(wallet)) {
-    if (allowed.length >= 2) return;
-    allowed.push(wallet);
-    await writeFile(previewFile(), JSON.stringify(allowed));
-  }
-  const now = new Date();
-  await applyWrite(userId, "preview.access.grant", userId, async (tx) => {
-    await tx.insert(entitlements).values({
-      userId,
-      source: "preview_grant",
-      startsAt: now,
-      endsAt: new Date(now.getTime() + 30 * 86400000),
-    });
-  });
 }
 export async function syncVerifiedWallets(userId: string, authSubject: string) {
   const db = await getDb();

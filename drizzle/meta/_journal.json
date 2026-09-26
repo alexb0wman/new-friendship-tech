@@ -15,6 +15,34 @@
       "when": 1790327356337,
       "tag": "0001_overconfident_frog_thor",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790327356339,
+      "tag": "0002_content_items",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790327356340,
+      "tag": "0003_trips_tables_world",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790327356341,
+      "tag": "0004_world_proof_requests",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790327356342,
+      "tag": "0005_mainnet_splits",
+      "breakpoints": true
     }
   ]
 }

@@ -12,8 +12,15 @@ import { ETH_COIN_TYPE, OG_COIN_TYPE } from "@/server/ens-v2/addresses";
 import { defaultTripRecords, labelSchema, suggestLabel, tripName } from "@/server/ens-v2/names";
 import { labelId } from "@/server/ens-v2/names";
 import { assertChainWriteProof, observedKey } from "@/server/ens-v2/proof";
-import { drainEnsJobs, enqueueEnsJob, registerEnsJobHandler } from "@/server/ens-v2/jobs";
+import {
+  drainEnsJobs,
+  enqueueEnsJob,
+  registerEnsJobHandler,
+  ensJobCheckpoint,
+  ensJobSubmission,
+} from "@/server/ens-v2/jobs";
 import { world, WORLD_ACTION_TRIP } from "@/server/world/adapter";
+import { consumeTripProofRequest, tripProofRequest } from "@/server/world/requests";
 import { nowRecord, tripDTO } from "./dto";
 import type { NowRecord, TripDTO } from "@/lib/types";
 
@@ -30,6 +37,7 @@ export const activateSchema = z
     arrivesAt: z.iso.datetime({ offset: true }),
     departsAt: z.iso.datetime({ offset: true }),
     proof: z.unknown(),
+    requestId: z.uuid().optional(),
   })
   .strict();
 export const extendSchema = z
@@ -65,7 +73,14 @@ export async function activeTripFor(userId: string, city: string, db?: Tx | Data
   const [row] = await (db ?? (await getDb()))
     .select()
     .from(s.trips)
-    .where(and(eq(s.trips.userId, userId), eq(s.trips.city, city), eq(s.trips.status, "active")))
+    .where(
+      and(
+        eq(s.trips.userId, userId),
+        eq(s.trips.city, city),
+        eq(s.trips.status, "active"),
+        gt(s.trips.departsAt, new Date()),
+      ),
+    )
     .limit(1);
   return row ?? null;
 }
@@ -78,6 +93,7 @@ async function currentTrip(userId: string, city: string, db?: Tx | Database) {
         eq(s.trips.userId, userId),
         eq(s.trips.city, city),
         inArray(s.trips.status, [...ACTIVE_STATUSES]),
+        gt(s.trips.departsAt, new Date()),
       ),
     )
     .limit(1);
@@ -120,14 +136,20 @@ export async function activateTrip(
   const arrivesAt = new Date(body.arrivesAt),
     departsAt = new Date(body.departsAt);
   assertDates(arrivesAt, departsAt);
+  // Release partial-unique active-trip slots before a returning member starts another trip.
+  await expireTrips(new Date(), user.id);
+  const request =
+    world().kind === "live" ? await tripProofRequest(user.id, body.requestId, body) : null;
   const verified = await world().verifyProof({
     payload: body.proof,
     action: WORLD_ACTION_TRIP,
-    signal: body.city,
+    signal: request?.signal ?? body.city,
+    nonce: request?.rpContext.nonce,
   });
   const wanted = body.label ?? suggestLabel(user.name);
   const addresses = chain().addresses;
   const trip = await applyWrite(user.id, "trip.activate", body.city, async (tx) => {
+    if (request) await consumeTripProofRequest(tx, request.id, user.id);
     await tx.select({ id: s.users.id }).from(s.users).where(eq(s.users.id, user.id)).for("update");
     // One lock per (city, human): two concurrent activations by the same World ID serialize here.
     await tx.execute(
@@ -147,6 +169,7 @@ export async function activateTrip(
         and(
           eq(s.trips.city, body.city),
           inArray(s.trips.status, [...ACTIVE_STATUSES]),
+          gt(s.trips.departsAt, new Date()),
           eq(s.humanProofs.nullifier, verified.nullifier),
         ),
       )
@@ -312,6 +335,7 @@ export async function tripBadges(userIds: string[], city?: string) {
       and(
         inArray(s.trips.userId, userIds),
         eq(s.trips.status, "active"),
+        gt(s.trips.departsAt, new Date()),
         city ? eq(s.trips.city, city) : undefined,
       ),
     );
@@ -324,19 +348,25 @@ export async function tripBadges(userIds: string[], city?: string) {
     });
   return result;
 }
-export async function expireTrips(now = new Date()) {
+export async function expireTrips(now = new Date(), userId?: string) {
   const db = await getDb();
   const due = await db
     .select()
     .from(s.trips)
-    .where(and(eq(s.trips.status, "active"), lte(s.trips.departsAt, now)))
+    .where(
+      and(
+        inArray(s.trips.status, [...ACTIVE_STATUSES]),
+        lte(s.trips.departsAt, now),
+        userId ? eq(s.trips.userId, userId) : undefined,
+      ),
+    )
     .limit(100);
   for (const row of due)
     await applyWrite(null, "trip.expire", row.id, async (tx) => {
       const changed = await tx
         .update(s.trips)
         .set({ status: "expired", updatedAt: new Date() })
-        .where(and(eq(s.trips.id, row.id), eq(s.trips.status, "active")))
+        .where(and(eq(s.trips.id, row.id), inArray(s.trips.status, [...ACTIVE_STATUSES])))
         .returning({ id: s.trips.id });
       if (!changed.length) return;
       await tx.update(s.nowPosts).set({ active: false }).where(eq(s.nowPosts.userId, row.userId));
@@ -393,15 +423,23 @@ async function failTrip(id: string, code: string) {
 /** Write records through a signer, wait for the receipt, re-read every record, compare. */
 export async function writeRecordsProven(signer: Signer, name: string, records: RecordWrite[]) {
   const c = chain();
-  const submission = await c.setRecords(signer, name, records);
+  const prepared = await ensJobCheckpoint("records.intent", async () => ({
+    signer,
+    name,
+    records,
+  }));
+  const submission = await ensJobSubmission("records.transaction", () =>
+    c.setRecords(prepared.signer, prepared.name, prepared.records),
+  );
   const receipt = await c.receipt(submission.hash);
+  invariant(receipt.status !== "pending", "PENDING", "Record update not mined yet.", 409);
   const observed: Record<string, string | null> = {};
-  for (const record of records)
+  for (const record of prepared.records)
     observed[observedKey(record)] =
       record.type === "text"
-        ? await c.readText(name, record.key)
-        : await c.readAddr(name, record.coinType);
-  assertChainWriteProof({ submission, receipt, expected: { records }, observed });
+        ? await c.readText(prepared.name, record.key)
+        : await c.readAddr(prepared.name, record.coinType);
+  assertChainWriteProof({ submission, receipt, expected: { records: prepared.records }, observed });
   return submission;
 }
 registerEnsJobHandler("trip.register", async (job) => {
@@ -414,12 +452,14 @@ registerEnsJobHandler("trip.register", async (job) => {
   const c = chain();
   let registered;
   try {
-    registered = await c.registerTrip({
-      city: trip.city,
-      label: trip.label,
-      owner: wallet,
-      expiry: Math.floor(trip.departsAt.getTime() / 1000),
-    });
+    registered = await ensJobSubmission("trip.registration", () =>
+      c.registerTrip({
+        city: trip.city,
+        label: trip.label,
+        owner: wallet,
+        expiry: Math.floor(trip.departsAt.getTime() / 1000),
+      }),
+    );
   } catch (error) {
     if (error instanceof ChainRevert) await failTrip(trip.id, error.code);
     throw error;
@@ -427,6 +467,21 @@ registerEnsJobHandler("trip.register", async (job) => {
   const receipt = await c.receipt(registered.hash);
   invariant(receipt.status !== "pending", "PENDING", "Registration not mined yet.", 409);
   invariant(receipt.status === "success", "ENS_TX_FAILED", "Registration reverted.", 409);
+  assertChainWriteProof({
+    submission: registered,
+    receipt,
+    expected: { records: [] },
+    observed: {},
+  });
+  const state = await c.tripState({ city: trip.city, label: trip.label });
+  invariant(
+    state.status === "registered" &&
+      state.owner?.toLowerCase() === wallet.toLowerCase() &&
+      state.expiry === Math.floor(trip.departsAt.getTime() / 1000),
+    "ENS_RECORD_MISMATCH",
+    "The registered trip owner or expiry did not match the approved trip.",
+    409,
+  );
   const defaults = defaultTripRecords(config().origin);
   const records: RecordWrite[] = [
     { type: "addr", coinType: ETH_COIN_TYPE, address: wallet },
@@ -443,6 +498,9 @@ registerEnsJobHandler("trip.register", async (job) => {
     { type: "text", key: "avatar", value: defaults.avatar },
     { type: "text", key: "url", value: defaults.url },
     { type: "text", key: "description", value: defaults.description },
+    // The shared resolver can outlive a registration. Never inherit an old invitation or pay record.
+    { type: "text", key: "friendship.now", value: "" },
+    { type: "addr", coinType: OG_COIN_TYPE, address: "" },
   ];
   const written = await writeRecordsProven("operator", trip.ensName, records);
   await applyWrite(null, "trip.registered", trip.id, async (tx) => {
@@ -461,13 +519,17 @@ registerEnsJobHandler("trip.register", async (job) => {
 });
 registerEnsJobHandler("trip.renew", async (job) => {
   const trip = await loadTrip(job.entityId);
+  if (trip.status !== "active" || trip.departsAt <= new Date()) return { txHash: null };
   const expiry = Number(job.payload.expiry);
   invariant(Number.isFinite(expiry) && expiry > 0, "VALIDATION", "Bad expiry.", 422);
   const c = chain();
-  const submission = await c.renewTrip({ city: trip.city, label: trip.label, expiry });
+  const submission = await ensJobSubmission("trip.renewal", () =>
+    c.renewTrip({ city: trip.city, label: trip.label, expiry }),
+  );
   const receipt = await c.receipt(submission.hash);
   invariant(receipt.status !== "pending", "PENDING", "Renewal not mined yet.", 409);
   invariant(receipt.status === "success", "ENS_TX_FAILED", "Renewal reverted.", 409);
+  assertChainWriteProof({ submission, receipt, expected: { records: [] }, observed: {} });
   const state = await c.tripState({ city: trip.city, label: trip.label });
   invariant(state.expiry >= expiry, "ENS_RECORD_MISMATCH", "Expiry did not extend.", 409);
   await applyWrite(null, "trip.renewed", trip.id, async (tx) => {
@@ -481,25 +543,59 @@ registerEnsJobHandler("trip.renew", async (job) => {
 registerEnsJobHandler("trip.expire", async (job) => {
   const trip = await loadTrip(job.entityId);
   const c = chain();
+  const state = await c.tripState({ city: trip.city, label: trip.label });
+  // ENS expires naturally. An old cleanup job must never touch a later registration of the label.
+  if (state.status !== "registered" || state.expiry !== Math.floor(trip.departsAt.getTime() / 1000))
+    return { txHash: null };
+  const owner = await primaryWallet(trip.userId, await getDb());
+  if (!owner || state.owner?.toLowerCase() !== owner.toLowerCase()) return { txHash: null };
   const clear: RecordWrite[] = [
     { type: "addr", coinType: ETH_COIN_TYPE, address: "" },
     { type: "text", key: "friendship.trip", value: "" },
     { type: "text", key: "friendship.now", value: "" },
   ];
-  const submission = await c.setRecords("operator", trip.ensName, clear);
-  const state = await c.tripState({ city: trip.city, label: trip.label });
+  const submission = await writeRecordsProven("operator", trip.ensName, clear);
   let last = submission.hash;
   if (state.status === "registered") {
-    try {
-      last = (await c.unregisterTrip({ city: trip.city, label: trip.label })).hash;
-    } catch (error) {
-      if (!(error instanceof ChainRevert)) throw error;
-    }
+    const latest = await c.tripState({ city: trip.city, label: trip.label });
+    if (
+      latest.status !== "registered" ||
+      latest.expiry !== state.expiry ||
+      latest.owner !== state.owner
+    )
+      return { txHash: last };
+    const unregistered = await ensJobSubmission("trip.unregister", () =>
+      c.unregisterTrip({ city: trip.city, label: trip.label }),
+    );
+    const receipt = await c.receipt(unregistered.hash);
+    assertChainWriteProof({
+      submission: unregistered,
+      receipt,
+      expected: { records: [] },
+      observed: {},
+    });
+    last = unregistered.hash;
   }
+  const current = await c.tripState({ city: trip.city, label: trip.label });
+  invariant(
+    current.status !== "registered",
+    "ENS_RECORD_MISMATCH",
+    "The trip is still registered on chain.",
+    409,
+  );
   return { txHash: last };
 });
 registerEnsJobHandler("record.set", async (job) => {
   const trip = await loadTrip(job.entityId);
+  if (trip.status !== "active" || trip.departsAt <= new Date()) return { txHash: null };
+  const current = await chain().tripState({ city: trip.city, label: trip.label });
+  const wallet = await primaryWallet(trip.userId, await getDb());
+  invariant(
+    current.status === "registered" && current.owner?.toLowerCase() === wallet?.toLowerCase(),
+    "ENS_RECORD_MISMATCH",
+    "This trip no longer owns the ENS registration.",
+    409,
+  );
   const record = job.payload.record as RecordWrite;
   const signer = (job.signer === "concierge" ? "concierge" : "operator") as Signer;
   const submission = await writeRecordsProven(signer, trip.ensName, [record]);

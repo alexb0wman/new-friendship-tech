@@ -16,6 +16,7 @@ import { enqueueEnsJob, registerEnsJobHandler } from "@/server/ens-v2/jobs";
 import { registerApprovalExecutor, requestApproval } from "@/server/world/approvals";
 import { activeTripFor, tickEnsWorld, writeRecordsProven } from "./trips";
 import { computeShares, usdcBaseUnits } from "./split";
+import { splitNetwork } from "@/server/splits/settlement";
 import type {
   ApprovalDTO,
   AttendeeDTO,
@@ -57,11 +58,9 @@ const dateLabel = (value: Date) =>
     minute: "2-digit",
   }).format(value) + " JST";
 
-async function loadGathering(id: string, db?: Tx | Database) {
-  const [row] = await (db ?? (await getDb()))
-    .select()
-    .from(s.gatherings)
-    .where(eq(s.gatherings.id, id));
+async function loadGathering(id: string, db?: Tx | Database, lock = false) {
+  const query = (db ?? (await getDb())).select().from(s.gatherings).where(eq(s.gatherings.id, id));
+  const [row] = await (lock ? query.for("update") : query);
   invariant(row, "NOT_FOUND", "Table not found.", 404);
   return row;
 }
@@ -252,7 +251,16 @@ export async function gatheringDetail(
           shareCents: own.attendee.shareCents,
           payTo: own.attendee.payAddress,
           payToName: hostRow?.tripName ?? "",
-          token: chain().addresses.usdc,
+          token: row.splitToken ?? "",
+          chainId: row.splitChainId,
+          chainName:
+            row.splitChainId != null ? splitNetwork(row.splitChainId).name : "Requires review",
+          payer: own.attendee.splitPayer,
+          errorCode: own.attendee.splitErrorCode,
+          explorerTx:
+            row.splitChainId && own.attendee.paidTx
+              ? splitNetwork(row.splitChainId).explorer + "/tx/" + own.attendee.paidTx
+              : null,
           amountBaseUnits: usdcBaseUnits(own.attendee.shareCents).toString(),
           paidTx: own.attendee.paidTx,
           verified: !!own.attendee.paidVerifiedAt,
@@ -348,6 +356,12 @@ export async function createGathering(
   return gatheringDetail(host, id);
 }
 async function assertSeatAvailable(gathering: s.GatheringRow, plusOnes: number, db: Tx | Database) {
+  invariant(
+    gathering.splitStatus === "none",
+    "SPLIT_FROZEN",
+    "The bill has been split; the attendee list is fixed.",
+    409,
+  );
   invariant(gathering.status === "open", "TABLE_CLOSED", "This table is not taking requests.", 409);
   const rows = await db
     .select()
@@ -405,7 +419,7 @@ registerApprovalExecutor("table.request", async (tx, approval, user) => {
   const payload = z
     .object({ gatheringId: uuid, plusOnes: z.number().int().min(0).max(1) })
     .parse(approval.payload);
-  const gathering = await loadGathering(payload.gatheringId, tx);
+  const gathering = await loadGathering(payload.gatheringId, tx, true);
   const trip = await requirePresence(user, gathering.city, tx);
   invariant(
     !(await blockedIds(user.id, tx)).has(gathering.hostUserId),
@@ -442,7 +456,7 @@ async function hostAttendee(
   attendeeId: string,
   db: Tx | Database,
 ) {
-  const gathering = await loadGathering(gatheringId, db);
+  const gathering = await loadGathering(gatheringId, db, true);
   invariant(gathering.hostUserId === host.id, "FORBIDDEN", "Only the host can do that.", 403);
   const [attendee] = await db
     .select()
@@ -522,7 +536,13 @@ export async function declineSeat(
 }
 export async function leaveGathering(user: s.UserRow, gatheringId: string) {
   await applyWrite(user.id, "table.leave", gatheringId, async (tx) => {
-    const gathering = await loadGathering(gatheringId, tx);
+    const gathering = await loadGathering(gatheringId, tx, true);
+    invariant(
+      gathering.splitStatus === "none",
+      "SPLIT_FROZEN",
+      "The bill has been split; the attendee list is fixed.",
+      409,
+    );
     const [attendee] = await tx
       .select()
       .from(s.gatheringAttendees)
@@ -556,7 +576,13 @@ export async function leaveGathering(user: s.UserRow, gatheringId: string) {
 }
 async function setStatus(host: s.UserRow, gatheringId: string, status: "closed" | "cancelled") {
   await applyWrite(host.id, "table." + status, gatheringId, async (tx) => {
-    const gathering = await loadGathering(gatheringId, tx);
+    const gathering = await loadGathering(gatheringId, tx, true);
+    invariant(
+      gathering.splitStatus === "none",
+      "SPLIT_FROZEN",
+      "The bill has been split; this table cannot be cancelled or reopened.",
+      409,
+    );
     invariant(gathering.hostUserId === host.id, "FORBIDDEN", "Only the host can do that.", 403);
     invariant(gathering.status !== "cancelled", "TABLE_CLOSED", "This table was cancelled.", 409);
     await tx

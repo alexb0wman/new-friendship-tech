@@ -4,6 +4,7 @@ import { config, isDemo, uuid } from "@/server/config";
 import { AppError, invariant } from "@/server/errors";
 import { jsonBody } from "@/server/http";
 import { world, WORLD_ACTION_TRIP } from "@/server/world/adapter";
+import { createTripProofRequest } from "@/server/world/requests";
 import { simulatedIdentity } from "@/server/world/simulated";
 import { parentName } from "@/server/ens-v2/addresses";
 import * as approvals from "@/server/world/approvals";
@@ -44,9 +45,12 @@ export async function handle(ctx: RouteContext): Promise<Response | null> {
     invariant(ctx.actor, "UNAUTHENTICATED", "Sign in to continue.", 401);
     return ctx.actor;
   };
-  if (path === "world/rp-context" && method === "GET") {
-    auth();
-    return ok(await world().rpContext(url.searchParams.get("action") ?? WORLD_ACTION_TRIP));
+  if (path === "world/rp-context" && method === "POST") {
+    const user = auth();
+    const body = trips.activateSchema
+      .omit({ proof: true, requestId: true })
+      .parse(await jsonBody(request));
+    return ok(await createTripProofRequest(user, body));
   }
   if (path === "world/verify" && method === "POST") {
     const user = auth();
@@ -67,6 +71,7 @@ export async function handle(ctx: RouteContext): Promise<Response | null> {
     );
   }
   if (path === "world/agent/callback" && method === "GET") {
+    invariant(isDemo(), "NOT_FOUND", "OIDC callbacks are not used for production approvals.", 404);
     const state = url.searchParams.get("state");
     invariant(state && uuid.safeParse(state).success, "VALIDATION", "Missing state.", 422);
     let error = "";
@@ -88,6 +93,34 @@ export async function handle(ctx: RouteContext): Promise<Response | null> {
         "X-Correlation-ID": ctx.correlationId,
       },
     });
+  }
+  if (path === "world/agent/verify" && method === "POST") {
+    const user = auth();
+    const body = z
+      .object({ approvalId: uuid, proof: z.unknown() })
+      .strict()
+      .parse(await jsonBody(request));
+    return ok(
+      await approvals.finishApproval({
+        approvalId: body.approvalId,
+        userId: user.id,
+        proof: body.proof,
+      }),
+    );
+  }
+  if (path === "world/agent/deny" && method === "POST") {
+    const user = auth();
+    const body = z
+      .object({ approvalId: uuid })
+      .strict()
+      .parse(await jsonBody(request));
+    return ok(
+      await approvals.finishApproval({
+        approvalId: body.approvalId,
+        userId: user.id,
+        error: "access_denied",
+      }),
+    );
   }
   if (path === "world/agent/simulate" && method === "POST") {
     invariant(isDemo(), "NOT_FOUND", "Not found.", 404);
@@ -165,6 +198,10 @@ export async function handle(ctx: RouteContext): Promise<Response | null> {
       if (sub === "close") return ok(await gatherings.closeGathering(user, id));
       if (sub === "split")
         return ok(await split.startSplit(user, id, split.splitSchema.parse(await body())));
+      if (sub === "split/prepare")
+        return ok(
+          await split.preparePayment(user, id, split.preparePaymentSchema.parse(await body())),
+        );
       if (sub === "split/paid")
         return ok(await split.reportPayment(user, id, split.paidSchema.parse(await body())));
       if (sub === "split/simulate") return ok(await split.simulatePayment(user, id));
@@ -187,17 +224,20 @@ export async function handle(ctx: RouteContext): Promise<Response | null> {
 }
 /** Safe runtime flags for the browser: never a secret, never a key. */
 export function publicConfig() {
-  const simulated = isDemo() || process.env.ENS_SIMULATED === "true";
+  const simulated = isDemo();
+  const worldEnabled = !!(
+    process.env.WORLD_APP_ID &&
+    process.env.WORLD_RP_ID &&
+    process.env.WORLD_RP_SIGNING_KEY
+  );
   return {
     world: {
-      enabled: simulated || !!(process.env.WORLD_APP_ID && process.env.WORLD_RP_ID),
+      enabled: simulated || worldEnabled,
       appId: simulated ? "app_simulated" : (process.env.WORLD_APP_ID ?? null),
       rpId: simulated ? "rp_simulated" : (process.env.WORLD_RP_ID ?? null),
-      environment: simulated ? "simulated" : (process.env.WORLD_ENVIRONMENT ?? "staging"),
+      environment: simulated ? "simulated" : (process.env.WORLD_ENVIRONMENT ?? "production"),
       action: WORLD_ACTION_TRIP,
-      agentsEnabled:
-        simulated ||
-        !!(process.env.WORLD_AGENTS_CLIENT_ID && process.env.WORLD_AGENTS_REDIRECT_URI),
+      agentsEnabled: simulated || worldEnabled,
       simulated,
     },
     ensParent: (() => {
@@ -207,7 +247,6 @@ export function publicConfig() {
         return null;
       }
     })(),
-    splitOgPayEnabled: process.env.SPLIT_OGPAY_ENABLED === "true",
     origin: config().origin,
   };
 }

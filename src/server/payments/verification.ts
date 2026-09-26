@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { invariant } from "@/server/errors";
 export interface Obligation {
+  merchant?: import("@/lib/payment-types").MerchantPayment;
   chainId: number;
   recipient: string;
   asset: string;

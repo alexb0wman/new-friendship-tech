@@ -6,10 +6,7 @@ import { useResource, useSession } from "../session";
 import { Eyebrow, Loading, Empty, ErrorBox, Tag } from "../ui";
 import type { ContentItem, ContentSection, ContentKind } from "@/lib/types";
 
-const SECTION_COPY: Record<
-  ContentSection,
-  { eyebrow: string; title: string; blurb: string }
-> = {
+const SECTION_COPY: Record<ContentSection, { eyebrow: string; title: string; blurb: string }> = {
   travel: {
     eyebrow: "TRAVEL",
     title: "Where to go.",
@@ -67,7 +64,12 @@ export function ChannelView({ section }: { section: ContentSection }) {
     });
     void reload();
   }
-  const photo = { art: "/photos/culture.webp", music: "/photos/now.webp", tech: "/photos/network.webp" }[section];
+  const photos: Partial<Record<ContentSection, string>> = {
+    art: "/photos/culture.webp",
+    music: "/photos/now.webp",
+    tech: "/photos/network.webp",
+  };
+  const photo = photos[section];
   return (
     <>
       <div className="city-hero">
@@ -182,9 +184,7 @@ export function TravelChannelView() {
             <br />
             <span>Guides and places.</span>
           </h1>
-          <p>
-            {data?.total ?? ""} guides, plus 1,836 saved places across ten cities.
-          </p>
+          <p>{data?.total ?? ""} guides, plus 1,836 saved places across ten cities.</p>
           <div className="hero-pills">
             <Link href="/tokyo">
               Browse places <ArrowUpRight size={14} />
@@ -232,11 +232,7 @@ export function TravelChannelView() {
           ))}
         </div>
       )}
-      {!me && (
-        <div className="note">
-          Sign in to save entries and see the full collection.
-        </div>
-      )}
+      {!me && <div className="note">Sign in to save entries and see the full collection.</div>}
     </>
   );
 }

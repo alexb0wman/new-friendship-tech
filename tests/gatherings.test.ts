@@ -284,6 +284,26 @@ describe("split the bill", () => {
     expect(mine.payToName).toBe("kenji.tokyo." + PARENT);
     expect(mine.amountBaseUnits).toBe("40000000");
     expect(mine.verified).toBe(false);
+    expect(mine.chainId).toBe(0);
+    expect(
+      (await api("gatherings/" + table.id + "/leave", "maya", "POST", {})).body.error.code,
+    ).toBe("SPLIT_FROZEN");
+    expect(
+      (await api("gatherings/" + table.id + "/cancel", "kenji", "POST", {})).body.error.code,
+    ).toBe("SPLIT_FROZEN");
+    expect(
+      (
+        await api("gatherings/" + table.id + "/split/prepare", "maya", "POST", {
+          payer: "0x" + "9".repeat(40),
+        })
+      ).body.error.code,
+    ).toBe("WALLET_UNVERIFIED");
+    const prepared = await api("gatherings/" + table.id + "/split/prepare", "maya", "POST", {
+      payer: "0x" + "2".padStart(40, "0"),
+    });
+    expect(prepared.status).toBe(200);
+    expect(prepared.body.chainId).toBe(0);
+    expect(prepared.body.value).toBe("0x0");
     const hint = await api("gatherings/" + table.id + "/split/paid", "maya", "POST", {
       txHash: "0x" + "a".repeat(64),
     });
@@ -306,5 +326,37 @@ describe("split the bill", () => {
       (await api("gatherings/" + table.id + "/split", "kenji", "POST", { totalCents: 500 })).body
         .error.code,
     ).toBe("SPLIT_EXISTS");
+  });
+  it("does not count the same verified transfer toward two tables", async () => {
+    async function splitTable() {
+      const table = await host();
+      const request = await api("gatherings/" + table.id + "/request", "maya", "POST", {
+        plusOnes: 0,
+      });
+      await approve("maya", request.body.id);
+      const attendee = (await api("gatherings/" + table.id, "kenji")).body.attendees.find(
+        (item: { role: string }) => item.role === "member",
+      );
+      const approval = await api("gatherings/" + table.id + "/approve", "kenji", "POST", {
+        attendeeId: attendee.id,
+      });
+      await approve("kenji", approval.body.id);
+      expect(
+        (await api("gatherings/" + table.id + "/split", "kenji", "POST", { totalCents: 8000 }))
+          .status,
+      ).toBe(200);
+      return table;
+    }
+    const first = await splitTable();
+    const second = await splitTable();
+    const paid = await api("gatherings/" + first.id + "/split/simulate", "maya", "POST", {});
+    expect(paid.body.split.status).toBe("settled");
+    const replay = await api("gatherings/" + second.id + "/split/paid", "maya", "POST", {
+      txHash: paid.body.split.mine.paidTx,
+    });
+    expect(replay.status).toBe(200);
+    expect(replay.body.split.mine.verified).toBe(false);
+    expect(replay.body.split.mine.errorCode).toBe("SPLIT_REPLAY");
+    expect(replay.body.split.status).toBe("pending");
   });
 });

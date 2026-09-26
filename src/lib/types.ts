@@ -138,6 +138,7 @@ export interface ConnectionItem {
   contact: { type: string; value: string } | null;
 }
 export interface Invoice {
+  payment?: import("./payment-types").MerchantPayment | null;
   id: string;
   status: InvoiceStatus;
   usdCents: number;
@@ -220,6 +221,11 @@ export interface SplitMine {
   payTo: string;
   payToName: string;
   token: string;
+  chainId: number | null;
+  chainName: string;
+  payer: string | null;
+  errorCode: string | null;
+  explorerTx: string | null;
   amountBaseUnits: string;
   paidTx: string | null;
   verified: boolean;
@@ -245,4 +251,5 @@ export interface ApprovalDTO {
   expiresAt: string;
   resultId: string | null;
   simulated: boolean;
+  proofRequest?: import("@/server/world/adapter").ProofRequestDTO | null;
 }

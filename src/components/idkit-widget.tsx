@@ -1,15 +1,14 @@
 "use client";
 import {
   IDKitRequestWidget,
-  passport,
-  proofOfHuman,
+  CredentialRequest,
   type IDKitResult,
   type RpContext,
 } from "@worldcoin/idkit";
 
 /**
- * The real World ID widget, loaded only in production builds through next/dynamic so the local
- * demo never ships it. The backend signs rp_context and verifies the returned proof; the widget
+ * The real World ID widget, loaded only for live flows through next/dynamic. The backend signs
+ * rp_context and verifies the returned proof; the widget
  * itself never sees a secret.
  */
 export default function IdkitWidget({
@@ -23,6 +22,8 @@ export default function IdkitWidget({
   signal,
   onVerify,
   onError,
+  requireUserPresence = false,
+  description,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -34,8 +35,13 @@ export default function IdkitWidget({
   signal: string;
   onVerify: (result: IDKitResult) => Promise<void>;
   onError?: (code: string) => void;
+  requireUserPresence?: boolean;
+  description?: string;
 }) {
-  const preset = credential === "passport" ? passport({ signal }) : proofOfHuman({ signal });
+  const constraints = CredentialRequest(credential === "passport" ? "passport" : "proof_of_human", {
+    signal,
+    expires_at_min: rpContext.expires_at,
+  });
   return (
     <IDKitRequestWidget
       open={open}
@@ -43,8 +49,10 @@ export default function IdkitWidget({
       app_id={appId as `app_${string}`}
       action={action}
       rp_context={rpContext}
-      allow_legacy_proofs={true}
-      preset={preset}
+      allow_legacy_proofs={false}
+      require_user_presence={requireUserPresence}
+      action_description={description}
+      constraints={constraints}
       environment={environment}
       handleVerify={onVerify}
       onSuccess={() => undefined}

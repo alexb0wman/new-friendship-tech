@@ -15,6 +15,12 @@ export function assertENSWriteProof(
 ) {
   invariant(chainId === intent.chainId, "ENS_CHAIN", "ENS RPC is on the wrong network.", 503);
   invariant(
+    tx.chainId === undefined || tx.chainId === intent.chainId,
+    "ENS_CHAIN",
+    "The transaction is on a different network.",
+    409,
+  );
+  invariant(
     receipt.status === "success",
     "ENS_TX_FAILED",
     "The record update has not succeeded.",

@@ -392,7 +392,31 @@ describe("real API handlers against migrated PostgreSQL in PGlite", () => {
         .status,
     ).toBe(422);
   });
-  it("retains late payment references for review without granting access", async () => {
+  it("queues a late live payment hint for independent mining-time verification", async () => {
+    const created = await invoice();
+    await db
+      .update(s.invoices)
+      .set({ provider: "0g-pay", quoteExpiresAt: new Date(Date.now() - 1000) })
+      .where(eq(s.invoices.id, created.body.id));
+    const r = await api("invoices/" + created.body.id + "/submit", "alex", "POST", {
+      sourceTx: "0x" + "c".repeat(64),
+      providerOrderId: "browser-cannot-bind-an-order",
+    });
+    expect(r.body.status).toBe("submitted");
+    expect(r.body.failureCode).toBe("LATE_SUBMISSION");
+    const [stored] = await db.select().from(s.invoices).where(eq(s.invoices.id, created.body.id));
+    const [job] = await db.select().from(s.jobs).where(eq(s.jobs.invoiceId, created.body.id));
+    expect(stored.providerOrderId).toBeNull();
+    expect(job.status).toBe("ready");
+    expect((await membership(DEMO_IDS.alex)).active).toBe(false);
+    // A legacy quote is never reinterpreted as a live merchant route.
+    await expect(reconcileInvoice(created.body.id)).rejects.toHaveProperty(
+      "code",
+      "PAYMENT_ROUTE_UNVERIFIED",
+    );
+    expect((await membership(DEMO_IDS.alex)).active).toBe(false);
+  });
+  it("retains late simulated payment references for review without granting access", async () => {
     const created = await invoice();
     await db
       .update(s.invoices)

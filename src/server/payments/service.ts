@@ -9,7 +9,8 @@ import { nextPeriod } from "@/server/membership";
 import { invariant, AppError } from "@/server/errors";
 import { isDemo } from "@/server/config";
 import { paymentAdapter, checkoutStatus, demoTransactionHash } from "./adapter";
-import { verifyEvidence } from "./verification";
+import { verifyEvidence, type Obligation } from "./verification";
+import { merchantFromQuote } from "./merchant";
 
 export const invoiceSchema = z
   .object({
@@ -23,6 +24,10 @@ export const invoiceSchema = z
 export function invoiceDTO(row: typeof s.invoices.$inferSelect) {
   return {
     id: row.id,
+    payment:
+      row.provider === "0g-pay" && (row.quote as Obligation).merchant
+        ? merchantFromQuote(row.quote as Obligation)
+        : null,
     status: row.status === "quoted" && row.quoteExpiresAt <= new Date() ? "expired" : row.status,
     usdCents: row.usdCents,
     quoteExpiresAt: row.quoteExpiresAt.toISOString(),
@@ -108,7 +113,7 @@ export async function recordSubmission(
   actorId: string,
   id: string,
   sourceTx: string,
-  providerOrderId: string,
+  _providerOrderHint = "",
 ) {
   await applyWrite(actorId, "invoice.submit_hint", id, async (tx) => {
     const [invoice] = await tx
@@ -125,19 +130,21 @@ export async function recordSubmission(
       409,
     );
     const late = invoice.quoteExpiresAt <= new Date();
+    const needsReview = late && invoice.provider === "demo"; // Simulated hashes have no independently provable mining time.
     // Hints only: the worker must independently prove attribution and settlement.
     await tx
       .update(s.invoices)
       .set({
         sourceTx,
-        providerOrderId,
-        status: late ? "review_required" : "submitted",
+        // Order identity is obtained independently from the provider by the worker.
+        providerOrderId: null,
+        status: needsReview ? "review_required" : "submitted",
         failureCode: late ? "LATE_SUBMISSION" : null,
       })
       .where(eq(s.invoices.id, id));
     await tx
       .insert(s.jobs)
-      .values({ invoiceId: id, status: late ? "review" : "ready" })
+      .values({ invoiceId: id, status: needsReview ? "review" : "ready" })
       .onConflictDoNothing();
   });
   return getInvoice(actorId, id);
@@ -296,6 +303,14 @@ export async function runWorkerOnce(owner = randomUUID()) {
         "WRONG_QUOTE",
         "UNDERPAID",
         "PAYMENT_REPLAY",
+        "WRONG_SOURCE_TX",
+        "WRONG_ORDER",
+        "PAYMENT_OUTSIDE_QUOTE",
+        "UNSUPPORTED_TREASURY",
+        "TX_FAILED",
+        "PAYMENT_REFUNDED",
+        "PAYMENT_REFUND_PENDING",
+        "PAYMENT_FAILED",
       ].includes(code) || job.attempts >= 12;
     await applyWrite(null, "payment.reconcile_retry", job.invoiceId, async (tx) => {
       await tx

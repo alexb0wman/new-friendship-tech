@@ -8,11 +8,21 @@ export function isDemo() {
     throw new Error("Demo mode is forbidden in a production process. Use npm run demo locally.");
   return demo;
 }
-/** Public alpha: simulated chain and World, Privy stays on. Never a live Sepolia write. */
+/** Simulated integrations are local-only and may never back a production account. */
 export function previewEns() {
-  return process.env.ENS_SIMULATED === "true";
+  const simulated = process.env.ENS_SIMULATED === "true";
+  if (simulated && !isDemo())
+    throw new Error("ENS_SIMULATED is local-demo only. Configure live integrations in production.");
+  return simulated;
+}
+export function assertRuntimeSafety() {
+  const demo = isDemo();
+  previewEns();
+  if (!demo && process.env.NFT_EMBEDDED_DB === "true")
+    throw new Error("NFT_EMBEDDED_DB is local-demo only. Production requires durable PostgreSQL.");
 }
 export function config() {
+  assertRuntimeSafety();
   const demo = isDemo();
   const origin = process.env.APP_ORIGIN ?? "http://localhost:3000";
   new URL(origin);
@@ -44,7 +54,10 @@ export function productionRequirements() {
     "SELLER_NAME",
   ];
   const missing = required.filter((key) => !process.env[key]);
-  if (!config().privyAppId) missing.push("PRIVY_APP_ID");
+  if (!(process.env.PRIVY_APP_ID || process.env.NEXT_PUBLIC_PRIVY_APP_ID))
+    missing.push("PRIVY_APP_ID");
+  if (process.env.ENS_SIMULATED === "true") missing.push("ENS_SIMULATED=false");
+  if (process.env.NFT_EMBEDDED_DB === "true") missing.push("NFT_EMBEDDED_DB=false");
   if (process.env.APP_MODE !== "production") missing.push("APP_MODE=production");
   if (process.env.NEXT_PUBLIC_APP_MODE !== "production")
     missing.push("NEXT_PUBLIC_APP_MODE=production");

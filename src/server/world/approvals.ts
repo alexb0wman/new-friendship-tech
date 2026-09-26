@@ -4,7 +4,9 @@ import { getDb, type Tx } from "@/server/db";
 import * as s from "@/server/db/schema";
 import { applyWrite } from "@/server/db/write";
 import { AppError, invariant } from "@/server/errors";
-import { world, type AgentIdentity } from "./adapter";
+import { world, WORLD_ACTION_APPROVAL, type AgentIdentity } from "./adapter";
+import { worldProofIssuer } from "./live";
+import { digest } from "./requests";
 import type { ApprovalAction, ApprovalDTO } from "@/lib/types";
 
 /**
@@ -43,6 +45,18 @@ export function pkce() {
 function effectiveStatus(row: s.ApprovalRow) {
   return row.status === "pending" && row.expiresAt <= new Date() ? "expired" : row.status;
 }
+function approvalSignal(
+  row: Pick<s.ApprovalRow, "id" | "userId" | "action" | "payload" | "nonce">,
+) {
+  return digest({
+    purpose: "approval",
+    id: row.id,
+    userId: row.userId,
+    action: row.action,
+    payload: row.payload,
+    nonce: row.nonce,
+  });
+}
 export function approvalDTO(row: s.ApprovalRow, url: string | null = null): ApprovalDTO {
   const status = effectiveStatus(row);
   return {
@@ -54,6 +68,10 @@ export function approvalDTO(row: s.ApprovalRow, url: string | null = null): Appr
     expiresAt: row.expiresAt.toISOString(),
     resultId: row.resultId,
     simulated: world().kind === "simulated",
+    proofRequest:
+      status === "pending" && row.rpContext
+        ? { ...row.rpContext, requestId: row.id, signal: approvalSignal(row) }
+        : null,
   };
 }
 export async function requestApproval(
@@ -68,8 +86,9 @@ export async function requestApproval(
     409,
   );
   invariant(executors.has(input.action), "APPROVAL_UNHANDLED", "Unknown action.", 500);
+  const rp = world().kind === "live" ? await world().rpContext(WORLD_ACTION_APPROVAL) : null;
   const { verifier, challenge } = pkce(),
-    nonce = randomBytes(16).toString("hex");
+    nonce = rp?.nonce ?? randomBytes(16).toString("hex");
   const row = await applyWrite(
     user.id,
     "approval.request",
@@ -85,17 +104,25 @@ export async function requestApproval(
             summary: input.summary,
             nonce,
             codeVerifier: verifier,
-            expiresAt: new Date(Date.now() + (link ? LINK_TTL_MS : APPROVAL_TTL_MS)),
+            rpContext: rp,
+            expiresAt: new Date(
+              Math.min(
+                Date.now() + (link ? LINK_TTL_MS : APPROVAL_TTL_MS),
+                rp ? rp.expires_at * 1000 : Infinity,
+              ),
+            ),
           })
           .returning()
       )[0],
   );
-  const url = await world().agentAuthorizeUrl({
-    approvalId: row.id,
-    nonce,
-    codeChallenge: challenge,
-    fresh: !link,
-  });
+  const url = rp
+    ? null
+    : await world().agentAuthorizeUrl({
+        approvalId: row.id,
+        nonce,
+        codeChallenge: challenge,
+        fresh: !link,
+      });
   return approvalDTO(row, url);
 }
 export async function loadApproval(id: string, userId?: string) {
@@ -122,8 +149,16 @@ export async function finishApproval(input: {
   code?: string;
   error?: string;
   identity?: AgentIdentity;
+  proof?: unknown;
+  userId?: string;
 }): Promise<ApprovalDTO> {
-  const row = await loadApproval(input.approvalId);
+  const row = await loadApproval(input.approvalId, input.userId);
+  invariant(
+    !row.rpContext || input.userId === row.userId,
+    "UNAUTHENTICATED",
+    "Sign in to answer this approval.",
+    401,
+  );
   const db = await getDb();
   const [user] = await db.select().from(s.users).where(eq(s.users.id, row.userId));
   invariant(user && !user.suspended, "FORBIDDEN", "This account is unavailable.", 403);
@@ -146,14 +181,43 @@ export async function finishApproval(input: {
     return approvalDTO({ ...row, status: "denied" });
   }
   invariant(
-    input.identity || input.code,
+    input.identity || input.code || input.proof,
     "APPROVAL_INCOMPLETE",
     "World ID did not return an authorization.",
     422,
   );
-  const identity =
-    input.identity ??
-    (await world().agentExchange({ code: input.code!, codeVerifier: row.codeVerifier }));
+  let identity: AgentIdentity;
+  if (row.rpContext) {
+    invariant(
+      input.proof && !input.identity && !input.code,
+      "APPROVAL_INCOMPLETE",
+      "A World ID proof is required.",
+      422,
+    );
+    const verified = await world().verifyProof({
+      payload: input.proof,
+      action: row.rpContext.action,
+      signal: approvalSignal(row),
+      nonce: row.nonce,
+      requireUserPresence: true,
+    });
+    identity = {
+      issuer: worldProofIssuer(),
+      sub: verified.nullifier,
+      nonce: row.nonce,
+      authTime: new Date(row.rpContext.created_at * 1000),
+    };
+  } else {
+    invariant(
+      world().kind === "simulated",
+      "APPROVAL_INCOMPLETE",
+      "Start a new World ID proof request.",
+      409,
+    );
+    identity =
+      input.identity ??
+      (await world().agentExchange({ code: input.code!, codeVerifier: row.codeVerifier }));
+  }
   invariant(
     identity.nonce === row.nonce,
     "APPROVAL_NONCE",
@@ -162,7 +226,9 @@ export async function finishApproval(input: {
   );
   if (row.action !== "agent.link") {
     invariant(
-      user.worldAgentSub && identity.sub === user.worldAgentSub,
+      user.worldAgentSub &&
+        identity.sub === user.worldAgentSub &&
+        identity.issuer === user.worldAgentIssuer,
       "APPROVAL_SUBJECT",
       "A different World ID answered this approval.",
       403,
@@ -188,12 +254,55 @@ export async function finishApproval(input: {
       "This approval was already used.",
       409,
     );
+    invariant(
+      locked.expiresAt > new Date(),
+      "APPROVAL_EXPIRED",
+      "This approval expired. No action was executed.",
+      409,
+    );
+    const [freshUser] = await tx
+      .select()
+      .from(s.users)
+      .where(eq(s.users.id, row.userId))
+      .for("update");
+    invariant(freshUser && !freshUser.suspended, "FORBIDDEN", "This account is unavailable.", 403);
+    if (row.action !== "agent.link")
+      invariant(
+        freshUser.worldAgentSub === identity.sub && freshUser.worldAgentIssuer === identity.issuer,
+        "APPROVAL_SUBJECT",
+        "The linked World ID changed. Start again.",
+        403,
+      );
     await tx
       .update(s.agentApprovals)
       .set({ status: "approved", worldSub: identity.sub, authTime: identity.authTime })
       .where(eq(s.agentApprovals.id, row.id));
-    let actor = user;
+    let actor = freshUser;
     if (row.action === "agent.link") {
+      // A linked account cannot silently replace its human, and one World identity cannot own two accounts.
+      invariant(
+        !freshUser.worldAgentSub ||
+          (freshUser.worldAgentSub === identity.sub &&
+            freshUser.worldAgentIssuer === identity.issuer),
+        "APPROVAL_SUBJECT",
+        "This account is already linked to a different World ID.",
+        409,
+      );
+      const [other] = await tx
+        .select({ id: s.users.id })
+        .from(s.users)
+        .where(
+          and(
+            eq(s.users.worldAgentIssuer, identity.issuer),
+            eq(s.users.worldAgentSub, identity.sub),
+          ),
+        );
+      invariant(
+        !other || other.id === row.userId,
+        "APPROVAL_SUBJECT",
+        "This World ID is already linked to another account.",
+        409,
+      );
       await tx
         .update(s.users)
         .set({
@@ -202,7 +311,7 @@ export async function finishApproval(input: {
           updatedAt: new Date(),
         })
         .where(eq(s.users.id, row.userId));
-      actor = { ...user, worldAgentIssuer: identity.issuer, worldAgentSub: identity.sub };
+      actor = { ...freshUser, worldAgentIssuer: identity.issuer, worldAgentSub: identity.sub };
     }
     const resultId = await executor(
       tx,

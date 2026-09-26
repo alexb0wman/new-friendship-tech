@@ -19,6 +19,9 @@ import { applyWrite } from "./db/write";
 import { blockedIds, publicMember } from "./social";
 import { requireMember } from "./membership";
 import { assertENSWriteProof } from "./ens-proof";
+import { ensNetwork, ensRpcUrl } from "./ens-network";
+import { resolverAbi as v2ResolverABI } from "./ens-v2/abi";
+import { dnsName } from "./ens-v2/names";
 
 export const ensNameSchema = z
   .string()
@@ -34,32 +37,39 @@ export const ensNameSchema = z
     }
   });
 const resolverABI = parseAbi(["function setText(bytes32 node, string key, string value)"]);
-function client() {
+function client(chainId: number = ensNetwork().id) {
+  const network = ensNetwork(chainId),
+    rpcUrl = ensRpcUrl(chainId);
   invariant(
-    config().ensEnabled && process.env.ENS_SEPOLIA_RPC_URL,
+    config().ensEnabled && rpcUrl,
     "ENS_UNAVAILABLE",
-    "ENSv2 Sepolia is not configured yet.",
+    "ENS is not configured on " + network.name + ".",
     503,
   );
   return createPublicClient({
-    chain: sepolia,
-    transport: http(process.env.ENS_SEPOLIA_RPC_URL, { timeout: 10000, retryCount: 1 }),
+    chain: network,
+    transport: http(rpcUrl, { timeout: 10000, retryCount: 1 }),
     // On-chain ENSv2 records only in this alpha. Arbitrary CCIP gateways are not fetched server-side.
     ccipRead: false,
   });
 }
-export async function resolveENS(rawName: string) {
+export async function resolveENS(rawName: string, chainId: number = ensNetwork().id) {
   const name = ensNameSchema.parse(rawName),
-    rpc = client();
+    rpc = client(chainId);
   invariant(
-    (await rpc.getChainId()) === sepolia.id,
+    (await rpc.getChainId()) === chainId,
     "ENS_CHAIN",
     "ENS RPC is on the wrong network.",
     503,
   );
   try {
     const address = await rpc.getEnsAddress({ name });
-    invariant(address, "ENS_NOT_FOUND", "This name has no address on Sepolia.", 404);
+    invariant(
+      address,
+      "ENS_NOT_FOUND",
+      "This name has no address on " + ensNetwork(chainId).name + ".",
+      404,
+    );
     const resolver = await rpc.getEnsResolver({ name });
     const description = await rpc.getEnsText({ name, key: "description" }).catch(() => null);
     return {
@@ -67,21 +77,21 @@ export async function resolveENS(rawName: string) {
       address: address.toLowerCase(),
       resolver,
       description,
-      chainId: sepolia.id,
+      chainId,
       nameHash: namehash(name),
     };
   } catch (error) {
     if (error instanceof AppError) throw error;
     throw new AppError(
       "ENS_RESOLUTION_FAILED",
-      "Could not resolve this Sepolia name. Off-chain gateway records are not supported in this alpha.",
+      "Could not resolve this ENS name. Off-chain gateway records are not supported.",
       503,
       true,
     );
   }
 }
-export async function linkENS(actor: UserRow, rawName: string) {
-  const resolved = await resolveENS(rawName);
+export async function linkENS(actor: UserRow, rawName: string, chainId: number = ensNetwork().id) {
+  const resolved = await resolveENS(rawName, chainId);
   const owned = await syncVerifiedWallets(actor.id, actor.authSubject);
   invariant(
     owned.includes(resolved.address),
@@ -93,7 +103,9 @@ export async function linkENS(actor: UserRow, rawName: string) {
     const [existing] = await tx
       .select()
       .from(ensIdentities)
-      .where(and(eq(ensIdentities.chainId, sepolia.id), eq(ensIdentities.name, resolved.name)));
+      .where(
+        and(eq(ensIdentities.chainId, resolved.chainId), eq(ensIdentities.name, resolved.name)),
+      );
     invariant(
       !existing || existing.userId === actor.id,
       "ENS_CONFLICT",
@@ -105,7 +117,7 @@ export async function linkENS(actor: UserRow, rawName: string) {
       .values({
         userId: actor.id,
         name: resolved.name,
-        chainId: sepolia.id,
+        chainId: resolved.chainId,
         nameHash: resolved.nameHash,
         address: resolved.address,
         resolver: resolved.resolver,
@@ -173,14 +185,27 @@ export async function prepareDescriptionWrite(
   const resolved = await linkENS(actor, name);
   invariant(resolved.resolver, "NO_RESOLVER", "This name does not have a resolver.", 409);
   const value = z.string().trim().max(160).parse(description),
-    rpc = client();
+    rpc = client(resolved.chainId);
+  // The deployed PermissionedResolver takes a DNS name; Ethereum's PublicResolver takes a node.
+  // Restrict the v2 ABI to our known Sepolia instance, rather than guessing a contract interface.
+  const appResolver = process.env.ENS_APP_RESOLVER?.toLowerCase();
+  const data =
+    resolved.chainId === sepolia.id && resolved.resolver.toLowerCase() === appResolver
+      ? encodeFunctionData({
+          abi: v2ResolverABI,
+          functionName: "setText",
+          args: [dnsName(resolved.name), "description", value],
+        })
+      : encodeFunctionData({
+          abi: resolverABI,
+          functionName: "setText",
+          args: [resolved.nameHash, "description", value],
+        });
   // The resolver's actual role permissions decide whether this account can write.
   await rpc
-    .simulateContract({
-      address: resolved.resolver,
-      abi: resolverABI,
-      functionName: "setText",
-      args: [resolved.nameHash, "description", value],
+    .call({
+      to: resolved.resolver,
+      data,
       account: resolved.address as Address,
     })
     .catch(() => {
@@ -190,11 +215,6 @@ export async function prepareDescriptionWrite(
         403,
       );
     });
-  const data = encodeFunctionData({
-    abi: resolverABI,
-    functionName: "setText",
-    args: [resolved.nameHash, "description", value],
-  });
   const intent = await applyWrite(
     actor.id,
     "ens.write.prepare",
@@ -208,7 +228,7 @@ export async function prepareDescriptionWrite(
             name: resolved.name,
             wallet: resolved.address,
             resolver: resolved.resolver!,
-            chainId: sepolia.id,
+            chainId: resolved.chainId,
             calldata: data,
             description: value,
             expiresAt: new Date(Date.now() + 20 * 60000),
@@ -218,7 +238,7 @@ export async function prepareDescriptionWrite(
   );
   return {
     intentId: intent.id,
-    chainId: sepolia.id,
+    chainId: resolved.chainId,
     from: resolved.address,
     to: resolved.resolver,
     data,
@@ -243,13 +263,13 @@ export async function confirmENSWrite(actor: UserRow, hash: string, intentId: st
     "This record-update intent expired. Read your current record and prepare a fresh update if needed.",
     409,
   );
-  const rpc = client();
+  const rpc = client(intent.chainId);
   const [receipt, transaction, chainId] = await Promise.all([
     rpc.getTransactionReceipt({ hash: hash as Hash }),
     rpc.getTransaction({ hash: hash as Hash }),
     rpc.getChainId(),
   ]);
-  const resolved = await resolveENS(intent.name);
+  const resolved = await resolveENS(intent.name, intent.chainId);
   assertENSWriteProof(intent, transaction, receipt, resolved.description, chainId);
   invariant(
     resolved.resolver?.toLowerCase() === intent.resolver.toLowerCase(),
@@ -257,7 +277,7 @@ export async function confirmENSWrite(actor: UserRow, hash: string, intentId: st
     "The resolver changed. Prepare a new update against the current resolver.",
     409,
   );
-  const linked = await linkENS(actor, intent.name);
+  const linked = await linkENS(actor, intent.name, intent.chainId);
   await applyWrite(actor.id, "ens.write.confirm", intent.id, async (tx) => {
     const [current] = await tx
       .select()

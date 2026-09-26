@@ -18,6 +18,7 @@
     "content:import": "node --import tsx scripts/import-content.ts",
     "worker": "node --import tsx src/worker/index.ts",
     "preflight": "node --import tsx scripts/preflight.ts",
+    "integrations:check": "node --import tsx scripts/integrations-check.ts",
     "check": "npm run typecheck && npm test && npm run build",
     "admin:bootstrap": "node --import tsx scripts/bootstrap-admin.ts",
     "ens:bootstrap": "node --import tsx scripts/ens-bootstrap.ts",
