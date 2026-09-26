@@ -8,6 +8,10 @@ export function isDemo() {
     throw new Error("Demo mode is forbidden in a production process. Use npm run demo locally.");
   return demo;
 }
+/** Public alpha: simulated chain and World, Privy stays on. Never a live Sepolia write. */
+export function previewEns() {
+  return process.env.ENS_SIMULATED === "true";
+}
 export function config() {
   const demo = isDemo();
   const origin = process.env.APP_ORIGIN ?? "http://localhost:3000";

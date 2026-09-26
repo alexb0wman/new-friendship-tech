@@ -55,6 +55,10 @@ export async function membership(userId: string, db?: Tx | Database, now = new D
     remainingRequests: current ? Math.max(0, PLAN.requestLimit - used) : 0,
   };
 }
+export async function requireTripAccess(userId: string, db?: Tx | Database) {
+  if (process.env.ENS_SIMULATED === "true") return;
+  await requireMember(userId, db);
+}
 export async function requireMember(userId: string, db?: Tx | Database) {
   const value = await membership(userId, db);
   invariant(

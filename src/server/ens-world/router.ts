@@ -187,7 +187,7 @@ export async function handle(ctx: RouteContext): Promise<Response | null> {
 }
 /** Safe runtime flags for the browser: never a secret, never a key. */
 export function publicConfig() {
-  const simulated = isDemo();
+  const simulated = isDemo() || process.env.ENS_SIMULATED === "true";
   return {
     world: {
       enabled: simulated || !!(process.env.WORLD_APP_ID && process.env.WORLD_RP_ID),

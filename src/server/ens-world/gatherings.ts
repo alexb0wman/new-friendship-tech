@@ -6,7 +6,7 @@ import * as s from "@/server/db/schema";
 import { applyWrite } from "@/server/db/write";
 import { invariant } from "@/server/errors";
 import { uuid } from "@/server/config";
-import { requireMember } from "@/server/membership";
+import { requireTripAccess } from "@/server/membership";
 import { publishedCity } from "@/server/catalog";
 import { blockedIds } from "@/server/social";
 import { chain } from "@/server/ens-v2/chain";
@@ -175,7 +175,7 @@ async function summaries(
 }
 export async function listGatherings(user: s.UserRow | null, city: string) {
   await publishedCity(city);
-  if (user) await requireMember(user.id);
+  if (user) await requireTripAccess(user.id);
   await tickEnsWorld();
   const db = await getDb();
   const blocked = user ? await blockedIds(user.id) : new Set<string>();
@@ -205,7 +205,7 @@ export async function gatheringDetail(
   const db = await getDb();
   const row = await loadGathering(id, db);
   if (user) {
-    await requireMember(user.id);
+    await requireTripAccess(user.id);
     invariant(
       !(await blockedIds(user.id)).has(row.hostUserId),
       "NOT_FOUND",
@@ -282,7 +282,7 @@ export async function createGathering(
   host: s.UserRow,
   body: z.infer<typeof createGatheringSchema>,
 ): Promise<GatheringDetail> {
-  await requireMember(host.id);
+  await requireTripAccess(host.id);
   await publishedCity(body.city);
   const trip = await requirePresence(host, body.city);
   const startsAt = new Date(body.startsAt);
@@ -366,7 +366,7 @@ export async function requestSeat(
   gatheringId: string,
   body: z.infer<typeof seatRequestSchema>,
 ): Promise<ApprovalDTO> {
-  await requireMember(user.id);
+  await requireTripAccess(user.id);
   const db = await getDb();
   const gathering = await loadGathering(gatheringId, db);
   invariant(gathering.hostUserId !== user.id, "SELF_REQUEST", "You are hosting this table.", 422);

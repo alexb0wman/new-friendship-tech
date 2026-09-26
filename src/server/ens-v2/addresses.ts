@@ -1,5 +1,5 @@
 import { normalize } from "viem/ens";
-import { isDemo } from "@/server/config";
+import { isDemo, previewEns } from "@/server/config";
 import { AppError } from "@/server/errors";
 
 /**
@@ -38,7 +38,7 @@ export function parentName(): string {
       );
     return name;
   }
-  if (isDemo()) return DEMO_PARENT;
+  if (isDemo() || previewEns()) return DEMO_PARENT;
   throw new AppError("ENS_UNAVAILABLE", "ENS_PARENT_NAME is not configured.", 503);
 }
 export const parentLabel = () => parentName().replace(/\.eth$/, "");

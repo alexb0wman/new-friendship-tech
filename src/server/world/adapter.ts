@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { isDemo } from "@/server/config";
+import { isDemo, previewEns } from "@/server/config";
 import { AppError } from "@/server/errors";
 import { simulatedWorld } from "./simulated";
 import { liveWorld } from "./live";
@@ -47,7 +47,7 @@ export interface WorldAdapter {
   agentExchange(input: { code: string; codeVerifier: string }): Promise<AgentIdentity>;
 }
 export function world(): WorldAdapter {
-  return isDemo() ? simulatedWorld() : liveWorld();
+  return isDemo() || previewEns() ? simulatedWorld() : liveWorld();
 }
 export const WORLD_ACTION_TRIP = process.env.WORLD_ACTION_TRIP || "trip-activate";
 export function nullifierToDecimal(hex: unknown): string {

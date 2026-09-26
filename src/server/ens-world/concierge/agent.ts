@@ -2,7 +2,7 @@ import { z } from "zod";
 import * as s from "@/server/db/schema";
 import { invariant } from "@/server/errors";
 import { uuid } from "@/server/config";
-import { requireMember } from "@/server/membership";
+import { requireTripAccess } from "@/server/membership";
 import { createNowIn, respondRequestIn } from "@/server/social";
 import { enqueueEnsJob } from "@/server/ens-v2/jobs";
 import { registerApprovalExecutor, requestApproval } from "@/server/world/approvals";
@@ -40,7 +40,7 @@ const timeLabel = (iso: string) =>
   }).format(new Date(iso));
 /** One conversational turn: read-only context in, reply plus approvals out. Nothing executes here. */
 export async function turn(user: s.UserRow, body: z.infer<typeof chatSchema>) {
-  await requireMember(user.id);
+  await requireTripAccess(user.id);
   const context = {
     openTables: await openTables(body.city),
     whoIsAround: await whoIsAround(body.city),
@@ -79,7 +79,7 @@ export async function publishNow(
   user: s.UserRow,
   body: z.infer<typeof nowSchema>,
 ): Promise<ApprovalDTO> {
-  await requireMember(user.id);
+  await requireTripAccess(user.id);
   invariant(
     await activeTripFor(user.id, body.city),
     "TRIP_REQUIRED",

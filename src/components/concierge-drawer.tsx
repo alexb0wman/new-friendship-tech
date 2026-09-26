@@ -33,7 +33,7 @@ export function ConciergeDrawer({ city }: { city: string }) {
   useEffect(() => {
     bottom.current?.scrollIntoView({ block: "end" });
   }, [log, open]);
-  if (!me || !me.membership.active) return null;
+  if (!me || (!me.membership.active && !config?.world?.simulated)) return null;
   async function send(message: string) {
     if (!message.trim() || busy) return;
     setBusy(true);

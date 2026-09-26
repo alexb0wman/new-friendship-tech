@@ -5,7 +5,7 @@ import * as s from "@/server/db/schema";
 import { applyWrite } from "@/server/db/write";
 import { AppError, invariant } from "@/server/errors";
 import { config, isDemo } from "@/server/config";
-import { requireMember } from "@/server/membership";
+import { requireTripAccess } from "@/server/membership";
 import { publishedCity } from "@/server/catalog";
 import { chain, ChainRevert, type RecordWrite, type Signer } from "@/server/ens-v2/chain";
 import { ETH_COIN_TYPE, OG_COIN_TYPE } from "@/server/ens-v2/addresses";
@@ -115,7 +115,7 @@ export async function activateTrip(
   user: s.UserRow,
   body: z.infer<typeof activateSchema>,
 ): Promise<TripDTO> {
-  await requireMember(user.id);
+  await requireTripAccess(user.id);
   await publishedCity(body.city);
   const arrivesAt = new Date(body.arrivesAt),
     departsAt = new Date(body.departsAt);

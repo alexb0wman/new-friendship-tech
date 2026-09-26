@@ -5,7 +5,7 @@ import * as s from "@/server/db/schema";
 import { applyWrite } from "@/server/db/write";
 import { AppError, invariant } from "@/server/errors";
 import { isDemo, txHash } from "@/server/config";
-import { requireMember } from "@/server/membership";
+import { requireTripAccess } from "@/server/membership";
 import { chain } from "@/server/ens-v2/chain";
 import { ETH_COIN_TYPE } from "@/server/ens-v2/addresses";
 import { enqueueEnsJob, registerEnsJobHandler } from "@/server/ens-v2/jobs";
@@ -44,7 +44,7 @@ export async function startSplit(
   gatheringId: string,
   body: z.infer<typeof splitSchema>,
 ) {
-  await requireMember(host.id);
+  await requireTripAccess(host.id);
   const db = await getDb();
   const [gathering] = await db.select().from(s.gatherings).where(eq(s.gatherings.id, gatheringId));
   invariant(gathering, "NOT_FOUND", "Table not found.", 404);
