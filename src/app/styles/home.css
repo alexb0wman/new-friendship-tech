@@ -60,22 +60,12 @@ body {
   animation-delay: 60ms;
 }
 .hero-title {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  column-gap: 0.28em;
-  row-gap: 0.04em;
   font-size: clamp(46px, 8.4vw, 152px);
   line-height: 0.9;
   letter-spacing: -0.058em;
   font-weight: 500;
-  max-width: 12em;
+  max-width: 15ch;
   margin: 0;
-}
-.hero-title > span {
-  display: inline-flex;
-  align-items: flex-end;
-  gap: 0.28em;
 }
 .hero-title .word-mask {
   vertical-align: baseline;
@@ -83,10 +73,9 @@ body {
 .hero-pill {
   display: inline-block;
   position: relative;
-  flex: 0 0 auto;
-  width: 1.35em;
-  height: 0.42em;
-  margin: 0 0 0.1em;
+  width: 1.05em;
+  height: 0.4em;
+  margin: 0 0.16em 0.08em;
   vertical-align: baseline;
   border-radius: 999px;
   overflow: hidden;
