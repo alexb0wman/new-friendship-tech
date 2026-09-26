@@ -71,8 +71,8 @@ const faqs = [
     "You choose whether your profile appears in member discovery. Contact details are shared only after you both accept.",
   ],
   [
-    "What is a trip name?",
-    "An optional ENS name for your stay, issued after a World ID check and set to expire when you leave. It helps members find you while you are in town.",
+    "What is a trip?",
+    "A stay in a published city. Guides, places, and plans for the days you are there.",
   ],
 ];
 
