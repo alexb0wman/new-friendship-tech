@@ -58,9 +58,30 @@ const emptyToken = async () => null;
 const unavailableProvider = async (): Promise<EIP1193Provider> => {
   throw new Error("A connected wallet is required.");
 };
+export function BootScreen() {
+  return (
+    <div className="boot-screen" role="status" aria-label="Opening">
+      <span className="boot-particles" aria-hidden="true">
+        {Array.from({ length: 22 }, (_, index) => (
+          <i
+            key={index}
+            style={{
+              left: `${(index * 17) % 100}%`,
+              animationDelay: `${(index % 11) * -0.16}s`,
+              animationDuration: `${1.5 + (index % 5) * 0.22}s`,
+              width: index % 4 === 0 ? 4 : 2,
+              height: index % 4 === 0 ? 4 : 2,
+              background: index % 3 === 0 ? "#f4f1ea" : "#c7ff97",
+            }}
+          />
+        ))}
+      </span>
+    </div>
+  );
+}
 const PrivyBridge = dynamic(() => import("./privy-bridge"), {
   ssr: false,
-  loading: () => <div className="boot-screen">Opening New Friendship Tech…</div>,
+  loading: () => <BootScreen />,
 });
 
 export function Providers({ children }: { children: ReactNode }) {
