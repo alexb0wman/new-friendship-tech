@@ -35,7 +35,12 @@ export function PlaceCard({ place, onSaved }: { place: Place; onSaved?: () => vo
           aria-label={place.locked ? "Sign up to see this place" : "View " + place.name}
           onClick={place.locked ? (event) => { event.preventDefault(); void login(); } : undefined}
         >
-          <img src={"/art/place-" + place.artwork + ".svg"} alt="" loading="lazy" />
+          <img
+            src={place.photo?.src ?? "/art/place-" + place.artwork + ".svg"}
+            alt=""
+            style={place.photo ? { objectPosition: place.photo.position } : undefined}
+            loading="lazy"
+          />
           <span className="art-area">
             {place.neighborhood}
             <Arrow size={22} />
@@ -69,6 +74,7 @@ export function PlaceCard({ place, onSaved }: { place: Place; onSaved?: () => vo
           </Link>
         )}
         <p>{place.locked ? "Sign up to see this place." : place.note.split(" Fictional demo venue;")[0]}</p>
+        {place.photo?.credit && <p className="photo-credit">{place.photo.credit}</p>}
         <div className="tags">
           {(place.reasons?.length ? place.reasons : place.tags.slice(0, 2)).map((tag) => (
             <Tag key={tag}>{tag}</Tag>

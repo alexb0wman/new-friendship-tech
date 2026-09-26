@@ -62,6 +62,7 @@ export interface Place {
   preview: boolean;
   fixture: boolean;
   artwork: string;
+  photo?: { src: string; position: string; credit: string; alts: string[]; area: boolean };
   reviewedAt: string | null;
   reasons?: string[];
   saved?: boolean;

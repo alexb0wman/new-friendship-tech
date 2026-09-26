@@ -201,7 +201,11 @@ export function PlaceView({ slug }: { slug: string }) {
       <div className="detail-grid">
         <div>
           <div className={"detail-art art-" + place.artwork}>
-            <img src={"/art/place-" + place.artwork + ".svg"} alt="" />
+            <img
+              src={place.photo?.src ?? "/art/place-" + place.artwork + ".svg"}
+              alt=""
+              style={place.photo ? { objectPosition: place.photo.position } : undefined}
+            />
             <span>{place.neighborhood}</span>
           </div>
           <div className="tags">

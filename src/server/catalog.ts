@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { and, eq, inArray, gt, asc, or, ilike } from "drizzle-orm";
 import { z } from "zod";
 import { getDb } from "./db";
@@ -40,8 +42,25 @@ function redact(place: Place): Place {
     note: "",
     mapUrl: "",
     sourceUrl: "",
+    photo: place.photo ? { ...place.photo, credit: "" } : undefined,
     locked: true,
   };
+}
+let photoMap: Map<string, NonNullable<Place["photo"]>> | null = null;
+async function photosBySlug() {
+  if (photoMap) return photoMap;
+  photoMap = new Map();
+  try {
+    const catalog = JSON.parse(await readFile(join(process.cwd(), "content/asia-catalog.json"), "utf8")) as {
+      places?: { slug: string; photo?: Place["photo"] }[];
+    };
+    for (const place of catalog.places ?? []) {
+      if (place.photo?.src) photoMap.set(place.slug, place.photo);
+    }
+  } catch {
+    photoMap = new Map();
+  }
+  return photoMap;
 }
 function placeDTO(row: typeof s.places.$inferSelect): Place {
   return {
@@ -112,7 +131,11 @@ export async function listPlaces(user: s.UserRow | null, params: URLSearchParams
   const page = Math.max(Number(params.get("page") ?? 1) || 1, 1);
   if (!paid && page > 1) return { items: [], access: "preview", locked: true, city };
   const items = rankPlaces(
-    rows.map((row) => ({ ...placeDTO(row), saved: savedIds.has(row.id) })),
+    rows.map((row) => ({
+      ...placeDTO(row),
+      photo: (await photosBySlug()).get(row.slug),
+      saved: savedIds.has(row.id),
+    })),
     user?.interests ?? [],
     user?.intents ?? [],
     user?.neighborhood ?? "",
@@ -138,7 +161,7 @@ export async function getPlace(user: s.UserRow | null, slug: string) {
         .from(s.saves)
         .where(and(eq(s.saves.userId, user.id), eq(s.saves.placeId, place.id)))
     : [];
-  const dto = { ...placeDTO(place), saved: !!saved };
+  const dto = { ...placeDTO(place), photo: (await photosBySlug()).get(place.slug), saved: !!saved };
   const paid = user ? (await membership(user.id)).active : false;
   return paid ? dto : redact(dto);
 }
