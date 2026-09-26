@@ -4,7 +4,7 @@ You are merging the ENSv2 + World ID drop into `alexb0wman/new-friendship-tech`.
 
 ## 1. What you are merging
 
-- Base: `main` at commit `8c83694` ("feat: four-topic navigation with submenus and a content system").
+- Base: `main` at commit `775b48f` ("feat: organize the header into bucket megamenus"), the upstream head on 2026-09-26.
 - Branch: `ens-world`, 17 commits on top of that base, authored 2026-09-26.
 - Size: 74 files, about 13,000 lines added, 140 removed: 53 new files (source, tests, migration, scripts, docs) and 21 modified files. `MANIFEST.txt` is the exact list.
 - Verified on the branch, Node 24.13 and the pinned lockfile: `npm run typecheck` clean, `npm test` 91 passed (44 pre-existing, 47 new), `npm run build` passes, `npm run smoke` passes, browser click-through of the demo script done in `npm run demo`.
@@ -14,16 +14,16 @@ What it adds, in one paragraph: a member's trip is an expiring, non-transferable
 
 ## 2. Four ways to apply it, in order of preference
 
-### 0. Fetch the branch from the fork (when you have the link)
+### 0. Fetch the branch from the drop repository (when you have the link)
 
 ```bash
-git remote add drop https://github.com/don-radman/new-friendship-tech.git
+git remote add drop https://github.com/don-radman/new-friendship-tech-ens-world.git
 git fetch drop ens-world
 git checkout main
 git merge --no-ff drop/ens-world
 ```
 
-The fork is a plain fork of this repository; `ens-world` is the only branch that matters. The routes below deliver the same commits inside the zip.
+That repository is a standalone copy under the owner's own account: `main` there is upstream `main` at `775b48f`, and `ens-world` is the drop on top of it. Nothing was pushed to the upstream repository. The routes below deliver the same commits inside the zip.
 
 ### A. Fetch the bundle and merge (keeps history, easiest conflicts)
 
@@ -33,7 +33,7 @@ git checkout main
 git merge --no-ff ens-world
 ```
 
-If `main` has moved since `8c83694`, prefer `git rebase main ens-world` first and resolve conflicts commit by commit; the commits are small and topical.
+If `main` has moved since `775b48f`, prefer `git rebase main ens-world` first and resolve conflicts commit by commit; the commits are small and topical.
 
 ### B. Apply the patch series
 
@@ -41,11 +41,11 @@ If `main` has moved since `8c83694`, prefer `git rebase main ens-world` first an
 git am --3way /path/to/ens-world-drop/patches/*.patch
 ```
 
-Patch `0001` is the optional `Bell` import fix (see section 6). Skip it with `git am --skip` if `main` already imports `Bell` in `src/components/app-shell.tsx`.
+The series applies cleanly on `775b48f`. On a later `main`, use `--3way` and resolve as the hunk summaries in section 4 describe.
 
 ### C. Loose files plus per-file diffs (no git history)
 
-New files live at their repository path under the drop root: copy them over. Modified files are shipped as `<path>.patch` next to where they belong (a unified diff against `8c83694`): apply each with `git apply --3way <path>.patch`, or read the hunk summary in section 4 and make the edit by hand. Then run `npm install` (the lockfile diff adds `@worldcoin/idkit` 4.3.0 and its four transitive packages).
+New files live at their repository path under the drop root: copy them over. Modified files are shipped as `<path>.patch` next to where they belong (a unified diff against `775b48f`): apply each with `git apply --3way <path>.patch`, or read the hunk summary in section 4 and make the edit by hand. Then run `npm install` (the lockfile diff adds `@worldcoin/idkit` 4.3.0 and its four transitive packages).
 
 Whichever route you take, finish with section 5.
 
@@ -78,7 +78,7 @@ Every hunk is additive or a contained refactor. If `main` moved, these are the p
 | `src/worker/index.ts`                              | Imports the handlers barrel and runs `runEnsWorkerOnce` after the payments worker each loop.                                                                                                                                                                                                                                                                                                                                                                                           |
 | `src/lib/types.ts`                                 | `PublicMember` gains three fields, `Me.user` gains two, and the new DTO types are appended.                                                                                                                                                                                                                                                                                                                                                                                            |
 | `src/components/session.tsx`                       | `RuntimeConfig` gains `world`, `ensParent`, `splitOgPayEnabled`, `origin`.                                                                                                                                                                                                                                                                                                                                                                                                             |
-| `src/components/app-shell.tsx`                     | Imports `Bell` (pre-existing bug) and `ConciergeDrawer`; Travel submenu gains "Tables"; the drawer mounts after `<main>` when signed in.                                                                                                                                                                                                                                                                                                                                               |
+| `src/components/app-shell.tsx`                     | Three added lines: import `ConciergeDrawer`; the Events bucket gains "Tables" next to "Right now"; the drawer mounts after `<main>` when signed in.                                                                                                                                                                                                                                                                                                                                    |
 | `src/components/platform.tsx`                      | Routes `/<city>/tables`, `/<city>/tables/:id`, `/approvals/:id`.                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | `src/components/views/account.tsx`                 | Mounts `<TripCard />` as the first settings panel.                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | `src/components/views/people.tsx`                  | Member cards show the trip name, the verified-human badge and the current Right now.                                                                                                                                                                                                                                                                                                                                                                                                   |
@@ -105,7 +105,7 @@ Expected: typecheck clean; `Tests 91 passed` (7 files); build lists `ƒ /api/mcp
 
 ## 6. Things you must know about the repository as it is
 
-1. `src/components/app-shell.tsx` on `main` renders `<Bell />` without importing it, so `npm run typecheck` fails before this drop. Patch `0001` adds the import. Drop it if `main` fixed it.
+1. `main` before `cb59f76` rendered `<Bell />` without importing it and failed `npm run typecheck`; upstream fixed it on 2026-09-26 and this drop is rebased on top of that fix.
 2. `drizzle/0002_content_items.sql` on `main` is hand-written and absent from `drizzle/meta/_journal.json` and `drizzle/meta/`. The demo and tests apply every `.sql` file in order (`src/server/db/index.ts`), but `scripts/migrate.ts` uses Drizzle's migrator, which reads the journal, so production would skip `0002` and now `0003`. This drop follows the `0002` precedent (hand-written `0003`, no meta regeneration) so as not to widen the problem. Before a production migration, add journal entries for `0002` and `0003` (or regenerate meta once from the full schema) and test on a scratch database.
 3. `@0gfoundation/0g-pay-sdk` cannot be bundled on `main`: it depends on `@tokenflight/adapter-ethers`, which requires `ethers`, which is not installed. `OgPayTrigger` is never mounted on `main`, so the build never noticed. This drop does not mount it either; `SPLIT_OGPAY_ENABLED=true` renders a note. Design doc section 2.9 says what to add if the owner wants 0G Pay in the demo.
 4. All demo account ids share their first eight characters. Anything that derives a per-account identity must use the id suffix (the drop does).

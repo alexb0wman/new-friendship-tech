@@ -1,6 +1,6 @@
 # ENSv2 + World ID drop for New Friendship Tech
 
-Built 2026-09-26 for ETHGlobal Tokyo 2026, on top of `main` at `8c83694`. Target prizes: ENS "Best Use of ENSv2", World "Best Use of IDKit", World "Best Use of World ID for Agents".
+Built 2026-09-26 for ETHGlobal Tokyo 2026, on top of `main` at `775b48f` (the upstream head that day). Target prizes: ENS "Best Use of ENSv2", World "Best Use of IDKit", World "Best Use of World ID for Agents".
 
 ## What you get
 
@@ -18,10 +18,10 @@ The local demo (`npm run demo`) runs all of it on simulated chain and World adap
 
 ## Five-minute merge
 
-From the fork link:
+From the repository link (a standalone copy under the owner's account; nothing was pushed upstream):
 
 ```bash
-git remote add drop https://github.com/don-radman/new-friendship-tech.git
+git remote add drop https://github.com/don-radman/new-friendship-tech-ens-world.git
 git fetch drop ens-world
 git merge --no-ff drop/ens-world
 ```
