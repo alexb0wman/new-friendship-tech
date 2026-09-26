@@ -2,13 +2,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ArrowUpRight, Settings, LogOut, ChevronDown, Bell } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useResource, useSession } from "./session";
 import { Avatar, Modal } from "./ui";
 import { ConciergeDrawer } from "./concierge-drawer";
 import type { City } from "@/lib/types";
 
-export function AppShell({ children }: { children: ReactNode }) {
+export function AppShell({ children, bleed = false }: { children: ReactNode; bleed?: boolean }) {
   const pathname = usePathname(),
     { me, config, login, logout, switchDemo, notice } = useSession();
   const [accountOpen, setAccountOpen] = useState(false),
@@ -41,7 +41,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         ["/" + citySlug + "/events", "Events", "Save a listing. A save is not a ticket."],
         ["/where-to-be", "Where to be", "The week in the city you selected."],
         ["/" + citySlug + "/now", "Right now", "Post a plan that expires on its own."],
-        ["/" + citySlug + "/tables", "Tables", "Small meals with verified humans. Every seat is approved."],
+        [
+          "/" + citySlug + "/tables",
+          "Tables",
+          "Small meals with verified humans. Every seat is approved.",
+        ],
       ],
     },
     {
@@ -93,8 +97,30 @@ export function AppShell({ children }: { children: ReactNode }) {
     },
   ];
   const current = buckets.find((bucket) => bucket.id === openBucket) ?? null;
+  // The bucket that owns the current page, by longest matching link.
+  const here = buckets
+    .flatMap((bucket) => bucket.items.map(([href]) => [bucket.id, href.split("#")[0]] as const))
+    .filter(([, href]) => pathname === href || pathname.startsWith(href + "/"))
+    .sort((a, b) => b[1].length - a[1].length)[0]?.[0];
+  useEffect(() => setOpenBucket(null), [pathname]);
+  // Anchor the menu to the header's real bottom edge (the demo bar shifts it).
+  const headerRef = useRef<HTMLElement>(null),
+    [menuTop, setMenuTop] = useState(80);
+  useEffect(() => {
+    if (openBucket && headerRef.current)
+      setMenuTop(Math.round(headerRef.current.getBoundingClientRect().bottom));
+  }, [openBucket]);
+  useEffect(() => {
+    if (!openBucket) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpenBucket(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [openBucket]);
   return (
-    <div className="app-frame">
+    <div className="app-frame" data-menu-open={current ? "" : undefined}>
+      <div className="scroll-progress" aria-hidden="true" />
       {config?.demo && (
         <div className="demo-bar">
           <span>LOCAL DEMO · Fictional people and places. No real payments.</span>
@@ -114,7 +140,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </select>
         </div>
       )}
-      <header className="app-header">
+      <header className="app-header" ref={headerRef}>
         <Link className="wordmark" href="/">
           new friendship
           <br />
@@ -132,6 +158,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               key={bucket.id}
               type="button"
               className={openBucket === bucket.id ? "active" : ""}
+              data-here={here === bucket.id ? "" : undefined}
               aria-expanded={openBucket === bucket.id}
               onClick={() => setOpenBucket(openBucket === bucket.id ? null : bucket.id)}
             >
@@ -160,8 +187,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           )}
         </div>
       </header>
-      <main className="app-main" id="main">
-        {children}
+      <main className={"app-main" + (bleed ? " bleed" : "")} id="main">
+        <div className="page-enter" key={pathname}>
+          {children}
+        </div>
       </main>
       {me && <ConciergeDrawer city={citySlug} />}
       <footer className="app-footer">
@@ -172,15 +201,31 @@ export function AppShell({ children }: { children: ReactNode }) {
       </footer>
       {current && (
         <>
-          <button className="mega-backdrop" aria-label="Close menu" onClick={() => setOpenBucket(null)} />
-          <div className="mega-menu" role="navigation" aria-label={current.label}>
+          <button
+            className="mega-backdrop"
+            aria-label="Close menu"
+            onClick={() => setOpenBucket(null)}
+          />
+          <div
+            className="mega-menu"
+            role="navigation"
+            aria-label={current.label}
+            key={current.id}
+            style={{ ["--menu-top" as string]: menuTop + "px" }}
+          >
             <div className="mega-intro">
               <p className="eyebrow">{current.label}</p>
               <h2>{current.line}</h2>
             </div>
             <div className="mega-grid">
-              {current.items.map(([href, label, detail]) => (
-                <Link key={href} href={href} onClick={() => setOpenBucket(null)}>
+              {current.items.map(([href, label, detail], index) => (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={() => setOpenBucket(null)}
+                  style={{ ["--i" as string]: index }}
+                  aria-current={pathname === href ? "page" : undefined}
+                >
                   <strong>{label}</strong>
                   <span>{detail}</span>
                 </Link>
@@ -195,6 +240,8 @@ export function AppShell({ children }: { children: ReactNode }) {
             key={bucket.id}
             type="button"
             className={openBucket === bucket.id ? "active" : ""}
+            data-here={here === bucket.id ? "" : undefined}
+            aria-expanded={openBucket === bucket.id}
             onClick={() => setOpenBucket(openBucket === bucket.id ? null : bucket.id)}
           >
             <span>{bucket.label}</span>

@@ -1,0 +1,289 @@
+/*
+ * Shared component refinements for every screen.
+ * Markup is unchanged; these rules sit on top of the base styles in globals.css.
+ */
+
+html {
+  scrollbar-color: #2e2e2e transparent;
+  accent-color: var(--lime);
+}
+body {
+  font-feature-settings: "ss01", "cv11";
+  text-rendering: optimizeLegibility;
+}
+h1,
+h2,
+h3 {
+  font-weight: 500;
+  text-wrap: balance;
+}
+p {
+  text-wrap: pretty;
+}
+:focus-visible {
+  transition: outline-offset var(--dur-fast) var(--ease-out);
+}
+
+/* ---------- Buttons ---------- */
+
+.button {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: 999px;
+  padding-inline: 22px;
+  transition:
+    color var(--dur-base) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out),
+    background-color var(--dur-base) var(--ease-out),
+    transform var(--dur-slow) var(--ease-spring);
+}
+/* Fill sweeps up from below the button on hover. */
+.button::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  background: var(--sweep, transparent);
+  clip-path: circle(0% at 50% 120%);
+  transition: clip-path var(--dur-slow) var(--ease-out);
+}
+.button:hover:not(:disabled)::before,
+.button:focus-visible::before {
+  clip-path: circle(150% at 50% 120%);
+}
+.button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.button svg {
+  transition: transform var(--dur-slow) var(--ease-out);
+}
+.button:hover:not(:disabled) .lucide-arrow-up-right {
+  transform: translate(2px, -2px);
+}
+.button.lime {
+  --sweep: #e6ffd2;
+}
+.button.lime:hover {
+  background: var(--lime);
+}
+.button.light {
+  --sweep: #ffffff;
+}
+.button.ghost {
+  --sweep: var(--text);
+}
+.button.ghost:hover:not(:disabled) {
+  background: transparent;
+  border-color: var(--text);
+  color: #050505;
+}
+.button.ghost.selected {
+  border-color: var(--lime);
+  color: var(--lime);
+}
+.button.small {
+  padding-inline: 16px;
+}
+
+.text-link {
+  background: linear-gradient(currentColor, currentColor) 0 calc(100% - 6px) / 0 1px no-repeat;
+  transition:
+    color var(--dur-fast),
+    background-size var(--dur-slow) var(--ease-out);
+}
+.text-link:hover {
+  background-size: 100% 1px;
+}
+.icon-button {
+  transition:
+    background var(--dur-fast),
+    border-color var(--dur-fast),
+    transform var(--dur-base) var(--ease-spring);
+}
+.icon-button:active {
+  transform: scale(0.92);
+}
+
+/* ---------- Chips and tags ---------- */
+
+.chip {
+  transition:
+    color var(--dur-fast),
+    background var(--dur-base) var(--ease-out),
+    border-color var(--dur-fast),
+    transform var(--dur-base) var(--ease-spring);
+}
+.chip:hover {
+  color: var(--text);
+}
+.chip:active {
+  transform: scale(0.95);
+}
+.chip.selected {
+  animation: chip-pick 420ms var(--ease-spring);
+}
+@keyframes chip-pick {
+  40% {
+    transform: scale(1.06);
+  }
+}
+
+/* ---------- Search and fields ---------- */
+
+.search-field {
+  border-radius: 999px;
+  padding: 0 18px;
+  transition:
+    border-color var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out);
+}
+.search-field:focus-within {
+  box-shadow: 0 0 0 4px #c7ff9714;
+}
+.search-field:focus-within svg {
+  color: var(--lime);
+}
+.field input,
+.field select,
+.field textarea {
+  border-radius: 12px;
+  transition:
+    border-color var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out),
+    background var(--dur-base);
+}
+.field input:hover,
+.field select:hover,
+.field textarea:hover {
+  border-color: #ffffff3d;
+}
+.field input:focus-visible,
+.field select:focus-visible,
+.field textarea:focus-visible {
+  outline: none;
+  border-color: var(--lime);
+  background: #0c0c0c;
+  box-shadow: 0 0 0 4px #c7ff971a;
+}
+
+/* ---------- Cards ---------- */
+
+.place-card {
+  border-radius: 20px;
+  transition:
+    border-color var(--dur-base) var(--ease-out),
+    transform var(--dur-slow) var(--ease-out);
+}
+.place-card:hover {
+  border-color: #ffffff3d;
+}
+.place-art img {
+  transition: transform 1100ms var(--ease-out);
+}
+.place-card:hover .place-art img {
+  transform: scale(1.07);
+}
+.art-area svg {
+  transition: transform var(--dur-slow) var(--ease-out);
+}
+.place-card:hover .art-area svg {
+  transform: translate(3px, -3px);
+}
+.save-button {
+  transition:
+    background var(--dur-base),
+    border-color var(--dur-base),
+    color var(--dur-base),
+    transform var(--dur-base) var(--ease-spring);
+}
+.save-button:hover {
+  transform: scale(1.08);
+}
+.save-button.saved svg {
+  animation: pop 460ms var(--ease-spring);
+}
+.place-body h3 {
+  transition: color var(--dur-fast);
+}
+.place-body a:hover h3 {
+  color: var(--lime);
+}
+
+.member-card,
+.now-card,
+.content-card,
+.request-card,
+.settings-panel,
+.pricing-card {
+  transition: border-color var(--dur-base) var(--ease-out);
+}
+.member-card:hover,
+.now-card:hover,
+.content-card:hover,
+.request-card:hover {
+  border-color: #ffffff3d;
+}
+.event-row {
+  transition: background var(--dur-base) var(--ease-out);
+}
+.event-row:hover {
+  background: #ffffff05;
+}
+.avatar {
+  transition: transform var(--dur-base) var(--ease-spring);
+}
+
+/* ---------- States ---------- */
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: #0d0d0d;
+  animation: fade-in 400ms var(--ease-out) backwards;
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 25%, #ffffff0b 50%, transparent 75%);
+  animation: shimmer-sweep 1.6s var(--ease-in-out) infinite;
+}
+.skeleton:nth-child(2),
+.skeleton:nth-child(2)::after {
+  animation-delay: 120ms;
+}
+.skeleton:nth-child(3),
+.skeleton:nth-child(3)::after {
+  animation-delay: 240ms;
+}
+.empty-state,
+.paywall,
+.error-box,
+.inline-membership {
+  animation: fade-rise 640ms var(--ease-out) backwards;
+}
+.empty-state {
+  border-radius: 24px;
+}
+.empty-symbol {
+  transition: transform var(--dur-slow) var(--ease-spring);
+}
+.empty-state:hover .empty-symbol {
+  transform: rotate(90deg);
+}
+.paywall {
+  border-radius: 28px;
+}
+.paywall h2 {
+  letter-spacing: -0.045em;
+  line-height: 1;
+}
+.note {
+  border-radius: 14px;
+}
+.onboarding-steps > div {
+  transition:
+    color var(--dur-base),
+    border-color var(--dur-base);
+}
