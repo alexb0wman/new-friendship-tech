@@ -130,10 +130,11 @@ export async function listPlaces(user: s.UserRow | null, params: URLSearchParams
   const savedIds = new Set(saved.map((row) => row.placeId));
   const page = Math.max(Number(params.get("page") ?? 1) || 1, 1);
   if (!paid && page > 1) return { items: [], access: "preview", locked: true, city };
+  const photos = await photosBySlug();
   const items = rankPlaces(
     rows.map((row) => ({
       ...placeDTO(row),
-      photo: (await photosBySlug()).get(row.slug),
+      photo: photos.get(row.slug),
       saved: savedIds.has(row.id),
     })),
     user?.interests ?? [],

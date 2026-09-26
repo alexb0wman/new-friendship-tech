@@ -7,6 +7,7 @@ import "./styles/motion.css";
 import "./styles/shell.css";
 import "./styles/components.css";
 import "./styles/home.css";
+import "./styles/directory.css";
 
 // Open-licensed stand-in (SIL OFL, see fonts/Figtree-OFL.txt) until the licensed
 // brand font files are placed in /public/fonts. Visby stays first in the stack.
