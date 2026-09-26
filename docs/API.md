@@ -78,3 +78,38 @@ Connection `kind`/interest values are defined in `src/lib/constants.ts`. City me
 An expired ENS write intent must be refreshed; the app does not automatically resend transactions. A pending real payment must be reconciled, not silently retried as a new purchase.
 
 The demo session endpoints are POST `/demo/session` with `{actor:"alex"\|"maya"\|"admin"}` and DELETE `/demo/session`. They return 404 outside local demo mode, and demo mode itself cannot run in a production process.
+
+## ENSv2 trips, tables, World ID and the concierge
+
+Added by the ENSv2 + World drop (`docs/ENS-WORLD-SPEC.md`, `docs/ENS-WORLD-DESIGN.md`). Same conventions as above. `GET /trips/:name` and `GET /world/agent/callback` are public; everything else needs a session. Demo-only routes return 404 outside `APP_MODE=demo`.
+
+| Method/path                           | Access      | Behavior                                                                                                       |
+| ------------------------------------- | ----------- | -------------------------------------------------------------------------------------------------------------- |
+| GET `/world/rp-context?action=`       | Signed in   | Server-signed IDKit `rp_context` for the widget; never generated in the browser                                |
+| POST `/world/verify`                  | Paid        | `{city,label?,arrivesAt,departsAt,proof}`; verifies the World ID proof, mints the trip name; 201 with the trip |
+| POST `/world/agent/link`              | Signed in   | Starts the one-time World ID for Agents link; returns an approval `{id,url,status}`                            |
+| GET `/world/agent/callback`           | Public      | OIDC redirect target (`code`, `state`, `error`); finishes the approval, then 302 to `/approvals/:id`           |
+| POST `/world/agent/simulate`          | Demo only   | `{approvalId,decision:"approve"\|"deny",human?}`; stands in for the World ID sandbox                           |
+| GET `/trips/me?city=`                 | Signed in   | `{trip}` (active or registering) or `{trip:null}`                                                              |
+| POST `/trips/extend`                  | Signed in   | `{city?,departsAt}`; forward only, renews the name on chain                                                    |
+| POST `/trips/end`                     | Signed in   | `{city?}`; clears records and unregisters                                                                      |
+| POST `/trips/pay-record`              | Signed in   | `{city?,enabled}`; writes or clears the 0G coin-type address record                                            |
+| GET `/trips/:name`                    | Public      | `{name,city,active,departsAt,verifiedHuman,now}`; presence only, never account data                            |
+| GET `/gatherings?city=`               | Paid        | Open, full and closed tables with host name, seats left and record links                                       |
+| POST `/gatherings`                    | Paid + trip | `{city,kind,placeId?,area,startsAt,seats}`; 201 with the table; concierge writes the record                    |
+| GET `/gatherings/:id`                 | Paid        | Attendees by name, split state, the raw `friendship.table` record                                              |
+| POST `/gatherings/:id/request`        | Paid + trip | `{plusOnes}`; 201 with an approval; the attendee row exists only after approval                                |
+| POST `/gatherings/:id/approve`        | Host        | `{attendeeId}`; 201 with an approval; the record is rewritten after approval                                   |
+| POST `/gatherings/:id/decline`        | Host        | `{attendeeId}`                                                                                                 |
+| POST `/gatherings/:id/leave`          | Member      | Leaves; the record is rewritten                                                                                |
+| POST `/gatherings/:id/close`          | Host        | Closes the table                                                                                               |
+| POST `/gatherings/:id/cancel`         | Host        | Cancels; the record is cleared                                                                                 |
+| POST `/gatherings/:id/split`          | Host        | `{totalCents}`; equal shares, host address resolved from the trip name                                         |
+| POST `/gatherings/:id/split/paid`     | Member      | `{txHash}`; a hint, verified from the chain by the worker                                                      |
+| POST `/gatherings/:id/split/simulate` | Demo only   | Simulated USDC transfer from the member's wallet                                                               |
+| POST `/concierge/chat`                | Paid        | `{city,message}`; `{reply,approvals,needsLink}`; nothing executes here                                         |
+| POST `/concierge/now`                 | Paid + trip | `{city,kind,area,until}`; 201 with a `now.publish` approval                                                    |
+| GET `/approvals/:id`                  | Owner       | Approval status (`pending`, `approved`, `consumed`, `denied`, `expired`)                                       |
+| POST `/api/mcp`                       | Public      | JSON-RPC 2.0 Model Context Protocol, read-only tools `resolveTrip`, `openTables`, `whoIsAround`                |
+
+`GET /config` additionally returns `world` (enabled, app id, RP id, environment, action, agentsEnabled, simulated), `ensParent`, `splitOgPayEnabled` and `origin`. Public member DTOs gain `tripName`, `verifiedHuman` and `now`; `GET /me` gains `user.verifiedHuman` and `user.worldAgentLinked`.

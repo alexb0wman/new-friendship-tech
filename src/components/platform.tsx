@@ -6,6 +6,9 @@ import { NowView, EventsView } from "./views/now-events";
 import { MembershipView, CheckoutView } from "./views/membership";
 import { OnboardingView, SettingsView } from "./views/account";
 import { AdminView } from "./views/admin";
+import { TablesView } from "./views/tables";
+import { TableDetailView } from "./views/table-detail";
+import { ApprovalResultView } from "./approval-modal";
 import { ChannelView, TravelChannelView } from "./views/channel";
 import {
   AtlasView,
@@ -51,6 +54,7 @@ export function Platform({ path }: { path: string[] }) {
   else if (first === "invite-tree") screen = <InviteTreeView />;
   else if (first === "operations") screen = <OperationsView />;
   else if (first === "members" && second) screen = <MemberView id={second} />;
+  else if (first === "approvals" && second) screen = <ApprovalResultView id={second} />;
   else if (first === "privacy" || first === "terms")
     screen = (
       <div className="policy-page">
@@ -76,6 +80,8 @@ export function Platform({ path }: { path: string[] }) {
     if (!second) screen = <ExploreView city={first} />;
     else if (second === "people") screen = <PeopleView city={first} />;
     else if (second === "now") screen = <NowView city={first} />;
+    else if (second === "tables" && !third) screen = <TablesView city={first} />;
+    else if (second === "tables" && third) screen = <TableDetailView id={third} city={first} />;
     else if (second === "events") screen = <EventsView city={first} />;
     else if (second === "places" && third) screen = <PlaceView slug={third} />;
     else screen = <Empty title="A little off the map.">This screen does not exist.</Empty>;

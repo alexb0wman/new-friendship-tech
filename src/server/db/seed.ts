@@ -16,6 +16,8 @@ export const DEMO_IDS = {
 export const DEMO_ACTORS = [
   { key: "alex", id: DEMO_IDS.alex, label: "Alex · Preview member" },
   { key: "maya", id: DEMO_IDS.maya, label: "Maya · All Access" },
+  { key: "kenji", id: DEMO_IDS.kenji, label: "Kenji · All Access" },
+  { key: "ari", id: DEMO_IDS.ari, label: "Ari · All Access" },
   { key: "admin", id: DEMO_IDS.admin, label: "Host · Admin" },
 ];
 export async function seedDemo(db: Database) {

@@ -5,6 +5,10 @@ const allowed = new Set([
   "PRIVY_APP_SECRET",
   "ENS_SEPOLIA_RPC_URL",
   "PAYMENT_RPC_URL",
+  "ENS_OPERATOR_PRIVATE_KEY",
+  "ENS_CONCIERGE_PRIVATE_KEY",
+  "WORLD_RP_SIGNING_KEY",
+  "WORLD_AGENTS_CLIENT_SECRET",
 ]);
 let pending: Promise<void> | undefined;
 /** Child-process runtime loading keeps secrets out of PM2's saved parent environment. */

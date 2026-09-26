@@ -5,6 +5,7 @@ import { ArrowUpRight, Settings, LogOut, ChevronDown, Bell } from "lucide-react"
 import { useState, type ReactNode } from "react";
 import { useResource, useSession } from "./session";
 import { Avatar, Modal } from "./ui";
+import { ConciergeDrawer } from "./concierge-drawer";
 import type { City } from "@/lib/types";
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -40,6 +41,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         ["/" + citySlug + "/events", "Events", "Save a listing. A save is not a ticket."],
         ["/where-to-be", "Where to be", "The week in the city you selected."],
         ["/" + citySlug + "/now", "Right now", "Post a plan that expires on its own."],
+        ["/" + citySlug + "/tables", "Tables", "Small meals with verified humans. Every seat is approved."],
       ],
     },
     {
@@ -160,6 +162,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <main className="app-main" id="main">
         {children}
       </main>
+      {me && <ConciergeDrawer city={citySlug} />}
       <footer className="app-footer">
         <span>Technology, creating new friendships.</span>
         <span>

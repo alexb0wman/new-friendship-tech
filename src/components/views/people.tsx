@@ -24,6 +24,17 @@ export function MemberCard({ member, onConnect }: { member: PublicMember; onConn
       <p className="member-role">{member.role}</p>
       <p className="member-bio">{member.bio}</p>
       {member.ensName && <span className="ens-label">{member.ensName} · Sepolia</span>}
+      {member.tripName && (
+        <span className="ens-label badge-inline">
+          {member.tripName}
+          {member.verifiedHuman && <BadgeCheck size={12} aria-label="Verified human" />}
+        </span>
+      )}
+      {member.now && (
+        <span className="member-now">
+          Up for {member.now.kind.toLowerCase()} in {member.now.area}
+        </span>
+      )}
       <div className="tags">
         {member.interests.slice(0, 3).map((interest) => (
           <Tag key={interest}>{interest}</Tag>
