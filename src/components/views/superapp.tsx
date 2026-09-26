@@ -173,7 +173,7 @@ export function CitiesView() {
   const items = cities.data?.items ?? [];
   return (
     <div className="stack">
-      <PageTitle eyebrow="Cities" title="Cities." description="Every published city. Tokyo has the full guide." />
+      <PageTitle eyebrow="Cities" title="Cities." description="Every published city." />
       <div className="city-grid">
         {items.map((city, index) => (
           <Link key={city.slug} className="city-card" href={city.published ? "/" + city.slug : "/cities"}>

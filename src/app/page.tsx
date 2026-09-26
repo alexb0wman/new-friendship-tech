@@ -25,10 +25,10 @@ export default function Home() {
           <div className="studio-hero-shade" />
           <div className="studio-hero-copy">
             <p className="eyebrow">
-              <span className="status-dot" /> Tokyo, first city
+              <span className="status-dot" /> Tokyo
             </p>
             <h1>
-              A network built on experiences that change your life.
+              A network built on life changing experiences.
             </h1>
           </div>
           <div className="studio-marquee" aria-hidden="true">
@@ -39,7 +39,7 @@ export default function Home() {
             </div>
           </div>
           <div className="studio-hero-foot">
-            <p>Members meet over dinners, shows, and trips, in Tokyo first. One membership covers every city we publish.</p>
+            <p>Members meet over dinners, shows, and trips. One membership covers every city we publish.</p>
             <div>
               <Link href="/tokyo" className="button lime">
                 Explore Tokyo <ArrowUpRight size={16} />
@@ -52,7 +52,7 @@ export default function Home() {
         </section>
         <section className="studio-count">
           <p className="eyebrow">The collection</p>
-          <h2>Ten cities. Tokyo has the full guide.</h2>
+          <h2>Ten cities, one membership.</h2>
           <div>
             <strong>1,836</strong>
             <span>Saved places, with map links. No ratings or reviews.</span>
