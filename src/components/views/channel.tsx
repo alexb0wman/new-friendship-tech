@@ -67,7 +67,7 @@ export function ChannelView({ section }: { section: ContentSection }) {
     });
     void reload();
   }
-  const photo = { art: "/photos/culture.webp", music: "/photos/night.webp", tech: "/photos/network.webp" }[section];
+  const photo = { art: "/photos/culture.webp", music: "/photos/now.webp", tech: "/photos/network.webp" }[section];
   return (
     <>
       <div className="city-hero">

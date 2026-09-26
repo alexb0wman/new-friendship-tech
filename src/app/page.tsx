@@ -21,7 +21,7 @@ export default function Home() {
     <div className="studio">
       <div>
         <section className="studio-hero">
-          <img src="/photos/hero.webp" alt="Night street in the city" />
+          <img src="/photos/hero.webp" alt="People crossing a city intersection" />
           <div className="studio-hero-shade" />
           <div className="studio-hero-copy">
             <p className="eyebrow">
